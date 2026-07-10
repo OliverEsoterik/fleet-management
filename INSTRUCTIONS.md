@@ -18,7 +18,7 @@ The consultation model is **hub-and-spoke**: a primary agent owns the task and c
 ```bash
 session="pi-agent-$(date +%s)-<agent-name>"
 tmux new-session -d -s "$session" -n agent \
-  'cd agents/<agent-name> && cat brain.md ../../agents/shared/WORKFLOW.md | pi -p "$(cat) <task description>"; echo "--- PRIMARY DONE ---"; sleep 3600'
+  "cd agents/<agent-name> && cat brain.md ../../agents/shared/WORKFLOW.md | pi -p \"$(cat) <task description>\"; echo '--- PRIMARY DONE ---'; sleep 3600"
 echo "Primary agent started in tmux session: $session"
 ```
 
@@ -60,8 +60,10 @@ while [ $depth -lt $max_depth ]; do
 
     # Start consultant in new tmux session
     session="pi-agent-$(date +%s)-$agent"
+    # Capture the requested_by from the todo file for the response path
+    requested_by=$(head -1 "$todo" | sed 's/.*requested_by: //')
     tmux new-session -d -s "$session" -n agent \
-      "cd agents/$agent && cat brain.md ../../agents/shared/WORKFLOW.md | pi -p \"\$(cat) Read work/todo/$agent.md and provide your consultation. Write your response to work/response/\$(head -1 work/todo/$agent.md | sed 's/.*requested_by: //')/$agent.md\"; echo \"--- CONSULTANT DONE ---\"; sleep 3600"
+      "cd agents/$agent && cat brain.md ../../agents/shared/WORKFLOW.md | pi -p \"$(cat) Read work/todo/$agent.md and provide your consultation. Write your response to work/response/$requested_by/$agent.md\"; echo '--- CONSULTANT DONE ---'; sleep 3600"
     echo "Consultant started in tmux session: $session"
 
     sleep 30
