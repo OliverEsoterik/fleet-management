@@ -73,7 +73,7 @@ while [ $DEPTH -lt $MAX_DEPTH ]; do
       continue
     fi
 
-    tmux new-session -d -s "$SESSION" -n agent \
+    tmux new-session -d -s "$session" -n agent \
       "cd '$agent_dir' && cat brain.md '$workflow_file' 2>/dev/null | pi -p \"Read $todo and provide your consultation. Write your response to work/response/${requested_by}/${agent}.md\"; echo '--- CONSULTANT DONE ---'; sleep 3600"
     echo "Consultant started in tmux session: $session"
 
