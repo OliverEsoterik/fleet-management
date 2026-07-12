@@ -2,6 +2,7 @@
 work/done/
 work/response/
 work/todo/
+venv/
 
 # old stuff
 _old
