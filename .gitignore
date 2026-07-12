@@ -8,10 +8,7 @@ _old
 
 # agent definitions
 agents
-AGENTS.md
-
-# my pi config
-.pi
+.pi/
 
 # my plans
 docs/
