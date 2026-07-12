@@ -3,8 +3,15 @@ work/done/
 work/response/
 work/todo/
 
+# old stuff
 _old
 
+# agent definitions
 agents
 
+# my pi config
 .pi
+
+# my plans
+docs/
+
