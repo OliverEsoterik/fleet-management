@@ -1,32 +1,37 @@
 # Fleet Management
 
-Multi-agent orchestration system using specialist agents in `agents/` and skills in `skills/`. Each agent is defined by a `brain.md` file, and you can invoke any agent on the fly via the `run-as-agent` skill.
+Multi-agent orchestration system using specialist agents in `agents/` and skills in `skills/`. The orchestrator skill is the primary entry point — it analyzes requests, discovers available skills, and delegates work to specialized sub-agents.
 
 ## How to use
 
-### Run a specific agent directly
+### Use the orchestrator skill
+
+```
+/skill:orchestrator <your task description>
+```
+
+The orchestrator skill:
+1. **Discovers** all available skills in `skills/`
+2. **Matches** your request against skill names and descriptions
+3. **Executes** the matched skill's delegation plan, or decomposes from scratch if no direct match
+4. **Consolidates** sub-agent results into a coherent response
+
+### Use a skill directly
+
+```
+/skill:<skill-name> <task description>
+```
+
+Skills are auto-discovered by pi and available via `/skill:<name>`.
+
+### Use an agent directly
 
 ```
 run as financial-analyst and value NVDA
 run as reviewer and audit this PR
 ```
 
-This invokes the `run-as-agent` skill, which reads the agent's `brain.md`, loads any referenced skills, and launches a dedicated sub-agent with the full context.
-
-### Use the fleet orchestration workflow
-
-```
-/skill:invoke-fleet <your task description>
-```
-
-The fleet skill guides through:
-1. **Analyze & match** — pick a primary agent from `agents/` for your task
-2. **Delegate** — launch the primary agent in a tmux session via `tools/delegate.sh`
-3. **Orchestrate** — poll for consultation requests and route them to specialist agents via `tools/orchestrate.sh`
-4. **Collect** — capture results with `tools/collect.sh`
-5. **Cleanup** — remove work artifacts with `tools/cleanup.sh`
-
-A pi extension is planned (`docs/plans/2026-07-10-fleet-extension.md`) to wrap these scripts into a `fleet_delegate` custom tool and `/fleet` slash command for structured input/output.
+This invokes the agent's `brain.md` file and launches a dedicated sub-agent with the full context.
 
 ## Structure
 
@@ -42,31 +47,25 @@ A pi extension is planned (`docs/plans/2026-07-10-fleet-extension.md`) to wrap t
 
 | Path | Purpose |
 |---|---|
-| `skills/invoke-fleet/` | Fleet orchestration — launch primary agent, route consultations, collect results |
-| `skills/invoke-fleet/SKILL.md` | Skill instructions (invoke via `/skill:invoke-fleet`) |
-| `skills/invoke-fleet/tools/delegate.sh` | Launch a primary agent in a new tmux session |
-| `skills/invoke-fleet/tools/orchestrate.sh` | Poll `work/` directory and route consultation requests |
-| `skills/invoke-fleet/tools/collect.sh` | Capture pane output from a tmux session and kill it |
-| `skills/invoke-fleet/tools/cleanup.sh` | Remove all `work/` artifacts |
+| `skills/orchestrator/` | Master orchestrator — analyzes requests, discovers skills, decomposes work, and delegates to specialized sub-agents |
 | `skills/lynn-alden-dcf/` | Discounted Cash Flow analysis (Lyn Alden's tutorial methodology) |
-| `skills/run-as-agent/` | On-the-fly agent invocation — reads `agents/<name>/brain.md` and launches a sub-agent with the full definition |
 | `skills/update-readme/` | Audit and update README.md to reflect current project structure |
-| `skills/architect/` | Architect / implementation lead mode (built-in skill) |
-| `skills/sre/` | Site Reliability Engineer / security review mode (built-in skill) |
+| `skills/review-and-fix/` | Full pipeline — review the repository, plan fixes, and implement them |
+| `skills/review-my-work/` | Review the repository for security vulnerabilities, test quality, and infrastructure issues |
+| `skills/fix-my-work/` | Diagnose and fix issues in the repository |
+| `skills/financial-analysis/` | Diagnose and fix issues in the repository (shared with `fix-my-work`) |
+| `skills/create-skill/` | Create a new skill in the project with research, synthesis, planning, and writing phases |
 
 ### Other
 
 | Path | Purpose |
 |---|---|
-| `.pi/extensions/` | Pi extension source (planned — see `docs/plans/`) |
 | `docs/plans/` | Implementation plans |
-| `work/todo/` | Consultation inbox (primary → consultant) |
-| `work/response/` | Consultation responses (consultant → primary) |
-| `work/done/` | Completion signals |
+| `work/` | Consultation artifacts (todo, response, done, recap directories) |
 
 ## Adding an agent
 
-Create `agents/<name>/brain.md` with YAML frontmatter and agent instructions. The agent will then be discoverable by the `run-as-agent` skill and the fleet workflow.
+Create `agents/<name>/brain.md` with YAML frontmatter and agent instructions. The agent will then be discoverable by the orchestrator skill and available for direct invocation.
 
 ```
 ---
@@ -81,7 +80,11 @@ Agents that need to consult other agents should reference the `shared/WORKFLOW.m
 
 ## Adding a skill
 
-Create `skills/<name>/SKILL.md` following the standard skill format (YAML frontmatter with `name` and `description`, then markdown body). Optionally include a `tools/` subdirectory with shell scripts that the skill references. Skills are auto-discovered by pi and available via `/skill:<name>`.
+Create `skills/<name>/SKILL.md` following the standard skill format (YAML frontmatter with `name` and `description`, then markdown body). Skills are auto-discovered by pi and available via `/skill:<name>`. For the full skill creation workflow, use:
+
+```
+/skill:create-skill <description of the skill you want to create>
+```
 
 ## Updating this README
 
@@ -89,4 +92,4 @@ Create `skills/<name>/SKILL.md` following the standard skill format (YAML frontm
 /skill:update-readme
 ```
 
-This skill scans the project structure (agents, skills, tools, docs, extensions) and reconciles README.md against what's actually on disk.
+This skill scans the project structure (agents, skills, docs) and reconciles README.md against what's actually on disk.
