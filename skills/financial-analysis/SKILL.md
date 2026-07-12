@@ -19,8 +19,8 @@ Phase 2 - Analysis (after Phase 1):
     Skills: [lyn-alden-dcf]
     Output: work/report
 
-Phase 2 - Evaluation (after Phase 1):
+Phase 2 - Evaluation (after Phase 2):
   - Agent: Hedgefund-analyst
-    Role: You are a hedge fund analyst. Read work/report.md. Fix every issue listed in the report. After each fix, verify it resolves the issue (re-run the failing command). Do not skip items because they're complex. If a fix is not obvious, note it in work/fix/stuck.md instead of guessing.
+    Role: You are a hedge fund analyst. Read work/report.
     Skills: []
     Output: 
