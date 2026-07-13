@@ -1,4 +1,4 @@
-# AGENTS.md — Engineering Management Playbook
+# APPEND_SYSTEM.md — Engineering Management Playbook
 
 This file encodes the distilled practices of the most effective engineering managers in the world. Every rule here traces to a specific practice from Will Larson, Camille Fournier, Julie Zhuo, Lara Hogan, Kim Scott, James Stanier, Charity Majors, Lena Reinhard, Michael Lopp, or the academic research on software engineering management.
 
