@@ -9,6 +9,13 @@ description: Use this skill when performing Discounted Cash Flow (DCF) analysis 
 
 Use this skill when you need to value an investment (business, stock, project, or bond) using the Discounted Cash Flow (DCF) method as taught by Lyn Alden. The core principle: **an investment now is worth the sum of all future cash flows it will produce, with each discounted to its present value.**
 
+> **Data source:** For stock/fundamental data, use the `stock-info` skill at `skills/stock-info/`.
+> - `bash skills/stock-info/tools/get-all.sh <ticker>` — fetch all financials at once
+> - `bash skills/stock-info/tools/get-info.sh <ticker>` — price, shares outstanding, sector
+> - `bash skills/stock-info/tools/get-income-statement.sh <ticker>` — revenue, EPS, margins
+> - `bash skills/stock-info/tools/get-cash-flow.sh <ticker>` — FCF, capex, buybacks
+> - `bash skills/stock-info/tools/get-balance-sheet.sh <ticker>` — cash, debt, net debt
+
 **Announce at start:** "I'm using the lyn-alden-dcf skill to perform discounted cash flow analysis."
 
 ---
@@ -154,6 +161,14 @@ def gordon_growth_model(next_year_fcf: float, growth_rate: float, discount_rate:
     """Fair value = FCF_next / (r - g). Assumes stable perpetual growth."""
     return next_year_fcf / (discount_rate - growth_rate) if discount_rate > growth_rate else float('inf')
 ```
+
+---
+
+## Dependencies
+
+- **stock-info skill** at `skills/stock-info/` provides financial data
+- **yfinance** (Python) — installed via `pip install yfinance` if not present
+- **python3**, **bash** — standard
 
 ---
 

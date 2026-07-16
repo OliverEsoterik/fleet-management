@@ -14,6 +14,16 @@ Use this skill when you need to analyze a stock using Peter Lynch's investment m
 
 **Core philosophy:** Invest in what you know. Stock prices follow earnings over the long term. Ignore macro forecasts and focus on individual companies. A stock must have both a **story** (qualitative thesis you can explain in 2 minutes) and a **number** (valuation supported by fundamentals).
 
+> **Data source:** This skill uses the `stock-info` skill for financial data.
+> Install at: `skills/stock-info/`
+> Fetch data via:
+> - `bash skills/stock-info/tools/get-info.sh <ticker>` — price, P/E, PEG, D/E, insider holdings
+> - `bash skills/stock-info/tools/get-income-statement.sh <ticker>` — revenue, EPS history
+> - `bash skills/stock-info/tools/get-balance-sheet.sh <ticker>` — cash, debt, inventory
+> - `bash skills/stock-info/tools/get-cash-flow.sh <ticker>` — FCF, capex
+> - `bash skills/stock-info/tools/get-insider-transactions.sh <ticker>` — insider trades
+> - `bash skills/stock-info/tools/get-all.sh <ticker>` — everything in one call
+
 **Announce at start:** "I'm using the peter-lynch skill to analyze [ticker]."
 
 ---
@@ -38,7 +48,7 @@ Classify the stock into one of Peter Lynch's six categories. **Each category has
 | **Asset Play** | N/A | Real estate / holding cos | Net asset value vs market cap | Variable |
 
 **How to classify:**
-1. Fetch earnings growth rate using `get_stock_info` — look at 1yr, 3yr, 5yr EPS CAGR
+1. Fetch earnings growth rate using `bash skills/stock-info/tools/get-info.sh <ticker>` (parsed with python3 -c "import json; d=json.load(sys.stdin); print(d.get('earningsGrowth'))") — look at 1yr, 3yr, 5yr EPS CAGR from income statement
 2. Check revenue growth consistency — is growth steady or volatile?
 3. Check industry context — is the company tied to economic cycles?
 4. Check for distress signals — is the company losing money but has assets/cash?
@@ -80,7 +90,7 @@ PEG = (Current P/E Ratio) / (Earnings Growth Rate %)
 **Lynch's rule of thumb:** A stock's P/E ratio should equal its growth rate + dividend yield. If P/E < growth rate, the stock is a bargain.
 
 **How to compute:**
-1. Use `get_stock_info` to get current P/E ratio
+1. Use `bash skills/stock-info/tools/get-info.sh <ticker>` to get current P/E ratio
 2. Calculate earnings growth rate (1yr, 3yr, 5yr CAGR from EPS data)
 3. Compute PEG = P/E / growth rate
 4. For dividend-paying stocks, compute adjusted PEG = P/E / (growth rate + dividend yield)
@@ -107,7 +117,7 @@ Lynch cared deeply about financial strength. A great growth story means nothing 
 | **Dividend Payout Ratio** | 25-50% for dividend payers | Sustainable dividend; > 80% is risky (may be cut) |
 
 **How to analyze:**
-1. Use `get_stock_info` to fetch balance sheet and cash flow data
+1. Use `bash skills/stock-info/tools/get-balance-sheet.sh <ticker>` and `bash skills/stock-info/tools/get-cash-flow.sh <ticker>`
 2. Calculate each metric above
 3. Flag any metric that violates Lynch's rule
 4. For inventory: compare trend over 3+ years, not just current quarter
@@ -128,7 +138,7 @@ Lynch saw insider buying as one of the strongest signals available to individual
 - **Strongest signal:** Insiders buying after a significant price drop
 
 **How to analyze:**
-1. Use `academic_search` or web search to find recent insider transactions
+1. Use `bash skills/stock-info/tools/get-insider-transactions.sh <ticker>` to fetch recent insider transactions
 2. Count distinct insiders who bought/sold in the last 90 days
 3. Note the dollar amounts — $1M+ insider buying is significant
 4. Distinguish between open-market purchases (signal) and option exercises (not a signal)
@@ -151,7 +161,7 @@ Lynch looked at growth from multiple angles to assess quality and sustainability
 5. **Growth vs Industry:** Is the company gaining or losing market share?
 
 **How to analyze:**
-1. Use `get_stock_info` to get EPS history, revenue history, ROE, payout ratio
+1. Use `bash skills/stock-info/tools/get-info.sh <ticker>` and `bash skills/stock-info/tools/get-income-statement.sh <ticker>`
 2. Calculate the metrics above
 3. Determine growth quality: **Strong** (consistent 15%+ EPS growth, revenue-supported), **Moderate** (10-15%, some one-time items), **Weak** (erratic or declining)
 
@@ -238,9 +248,17 @@ When the user asks to analyze a stock using Peter Lynch methodology:
 1. **Confirm the ticker** and optionally the specific task
 2. **Announce** the skill being used
 3. **Execute sequentially** through Steps 1-7
-4. **Use tools** — `get_stock_info` for financial data, `academic_search` for supplementary research (industry context, insider activity)
+4. **Fetch data** — Run the stock-info bash scripts to get all financial data for the ticker (see data-source note above)
 5. **Write outputs** to `work/peter-lynch/` for each step
 6. **Present the final recommendation** with supporting evidence from all prior steps
+
+---
+
+## Dependencies
+
+- **stock-info skill** at `skills/stock-info/` provides all financial data
+- **yfinance** (Python) — installed via `pip install yfinance` if not present
+- **python3**, **bash** — standard
 
 ---
 
