@@ -1,29 +1,73 @@
 ---
 name: financial-analysis
 description: >
-  Full financial analysis pipeline — stock research, DCF valuation, and hedge
-  fund analysis. Runs research, analysis, and evaluation phases sequentially.
+  Multi-methodology financial analysis pipeline — data collection, then
+  parallel analysis across DCF (Lyn Alden), value/GARP (Peter Lynch), and
+  antifragility critique (Taleb), followed by a consolidated recommendation.
+  Each methodology is delegated to a dedicated sub-agent.
 ---
 
 # Financial Analysis
 
 ## Delegation
 
-Phase 1 - Research (parallel):
+Phase 1 — Data Collection (parallel):
   - Agent: stock-researcher
-    Role: You are a financial researcher. Search for relevant information on the specific stock ticker. Document your findings in work/research.
-    Skills: [yfinance, WebSearch, get_stock_info]
-    Output: work/report
+    Role: >
+      You are a financial researcher. Fetch comprehensive financial data
+      for the specified stock ticker and write it to work/research/data.md.
+      Use the stock-info skill to gather all data.
+    Skills: [stock-info]
+    Output: work/research/data.md
 
-Phase 2 - Analysis (after Phase 1):
-  - Agent: financial-analyst
-    Role: You are a financial analyst specializing in fundamental analysis and discounted cash flow (DCF) valuation following Lyn Alden's methodology. All financial information are presented in work/report. Do not search for any other information on the internet. Write the full report of your findings in work/report
+Phase 2 — Multi-Methodology Analysis (parallel, after Phase 1):
+  - Agent: dcf-analyst
+    Role: >
+      You are a DCF valuation specialist following Lyn Alden's methodology.
+      Read work/research/data.md for all financial data. Do not fetch any
+      additional data from the internet. Perform a full DCF valuation:
+      project cash flows, compute present values, calculate terminal value,
+      determine fair value per share, compare to current price, and
+      document margin of safety. Run sensitivity analysis on discount rate
+      and growth rate. Write your full analysis to work/analysis/dcf.md.
     Skills: [lyn-alden-dcf]
-    Output: work/report
+    Output: work/analysis/dcf.md
 
-Phase 3 - Evaluation (after Phase 2):
-  - Agent: Hedgefund-analyst
-    Role: You are a hedge fund analyst. Read work/report.
+  - Agent: value-analyst
+    Role: >
+      You are a value investing analyst following Peter Lynch's GARP
+      (Growth at a Reasonable Price) methodology. Read
+      work/research/data.md for all financial data. Do not fetch any
+      additional data from the internet. Perform a complete Lynch analysis:
+      classify the stock (Slow Grower / Stalwart / Fast Grower / Cyclical /
+      Turnaround / Asset Play), compute PEG ratio, check balance sheet
+      health, analyze insider activity, assess growth quality, and check
+      sell signals. Write your full analysis to work/analysis/lynch.md.
+    Skills: [peter-lynch]
+    Output: work/analysis/lynch.md
+
+  - Agent: antifragility-analyst
+    Role: >
+      You are a risk analyst applying Nassim Nicholas Taleb's antifragility
+      framework. Read work/research/data.md for all financial data. Do not
+      fetch any additional data from the internet. Critique the investment
+      thesis: identify hidden fragilities, black swan exposures, asymmetric
+      risk/reward, optionality, and Lindy effects. Assess whether the
+      company benefits from volatility (antifragile) or is harmed by it
+      (fragile). Write your analysis to work/analysis/taleb.md.
+    Skills: [nassim-nicholas-taleb]
+    Output: work/analysis/taleb.md
+
+Phase 3 — Synthesis (after Phase 2):
+  - Agent: synthesis-analyst
+    Role: >
+      You are a senior portfolio analyst. Read all three analysis files
+      (work/analysis/dcf.md, work/analysis/lynch.md,
+      work/analysis/taleb.md) and produce a consolidated investment
+      recommendation. Compare the methodologies: where do they agree?
+      Where do they conflict? Weigh each methodology's findings into a
+      final BUY / HOLD / SELL verdict with a specific price target and
+      risk assessment. Write the consolidated recommendation to
+      work/recommendation.md.
     Skills: []
-    Output:
-
+    Output: work/recommendation.md

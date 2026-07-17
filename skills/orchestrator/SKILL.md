@@ -140,7 +140,7 @@ Skills in `skills/` are delegation skills. The orchestrator reads their `## Dele
 | review-my-work | `skills/review-my-work/SKILL.md` | 1 phase (parallel) |
 | review-and-fix | `skills/review-and-fix/SKILL.md` | 3 phases |
 | fix-my-work | `skills/fix-my-work/SKILL.md` | 2 phases |
-| financial-analysis | `skills/financial-analysis/SKILL.md` | 2 phases |
+| financial-analysis | `skills/financial-analysis/SKILL.md` | 3 phases |
 
 ---
 

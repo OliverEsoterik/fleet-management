@@ -1,104 +1,122 @@
 # Fleet Management
 
-Multi-agent orchestration system using specialist agents (`.md` files in `agents/`) and skills (`skills/<name>/SKILL.md`). The orchestrator skill is the primary entry point — it analyzes requests, discovers available skills, and delegates work to specialized sub-agents.
+Multi-agent orchestration system using skills (`skills/<name>/SKILL.md`) for
+pi (the coding agent harness). The orchestrator skill is the primary entry
+point — it analyzes requests, discovers available skills, and delegates work
+to specialized sub-agents.
 
 ## How to use
 
-### Use the orchestrator skill
+### Use the orchestrator (recommended)
 
 ```
-/skill:orchestrator <your task description>
+/skill:orchestrator <task description>
 ```
 
-The orchestrator skill:
-1. **Discovers** all available skills in `skills/`
-2. **Matches** your request against skill names and descriptions
-3. **Executes** the matched skill's delegation plan, or decomposes from scratch if no direct match
-4. **Consolidates** sub-agent results into a coherent response
+The orchestrator:
+1. Scans all skills in `skills/`
+2. Matches your request against skill names and descriptions
+3. Executes the matched skill's delegation plan, or decomposes from scratch
+4. Consolidates sub-agent results
 
 ### Use a skill directly
 
 ```
-/skill:<skill-name> <task description>
+/skill:<skill-name> <task>
 ```
 
-Skills are auto-discovered by pi and available via `/skill:<name>`.
+For the full list of skills, see [`skills/README.md`](skills/README.md).
+Most skills are designed to work through the orchestrator; direct invocation
+is for targeted tasks (e.g., `/skill:setup-testing-workflows .`,
+`/skill:update-readme`, `/skill:research best practices for Redis caching`).
 
 ### Use an agent directly
 
 ```
 run as financial-analyst and value NVDA
-run as reviewer and audit this PR
 ```
 
-This invokes the agent's `<name>.md` file from the `agents/` directory and launches a dedicated sub-agent with the full context.
+This invokes the agent's `.md` file from `agents/`. Less common — most
+functionality is exposed through skills.
 
 ## Structure
 
-### Agents
-
-| Path | Purpose |
-|---|---|
-| `agents/financial-analyst.md` | Financial analyst for DCF valuation, balance sheet analysis, cashflow analysis, and investment assessment (uses Lyn Alden methodology) |
-| `agents/reviewer.md` | Orchestrator for code review — invokes Security Auditor, Test Engineer, and DevOps Engineer agents and consolidates their reports |
-| `agents/gitops-expert.md` | GitOps audit specialist — reviews ArgoCD/Flux configurations against security hardening, deployment safety, and operational maturity checklists |
-| `agents/shared-workflow.md` | Cross-agent collaboration rules (read by all agents) |
-
 ### Skills
 
+All skills live in `skills/<name>/SKILL.md`. Each has YAML frontmatter with
+`name` and `description`. Skills are auto-discovered by pi and available via
+`/skill:<name>`.
+
+| Skill | Type | Purpose |
+|-------|------|---------|
+| orchestrator | Delegation (meta) | Master entry point — discovers skills, routes requests |
+| architect | Methodology | Architectural design with ADR + plans |
+| better-products-habits | Methodology | Hiten Shah's 5 habits for product building |
+| create-skill | Delegation | Create new skills with research + writing phases |
+| execute | Delegation | Execute implementation plans with sub-agents |
+| financial-analysis | Delegation | Multi-methodology analysis (DCF, Lynch, Taleb) |
+| fix-my-work | Delegation | Diagnose and fix repo issues |
+| git-workflow | Methodology | Branching, versioning, changelogs |
+| lyn-alden-dcf | Methodology | DCF valuation reference |
+| nassim-nicholas-taleb | Methodology | Antifragility/black swan critique |
+| peter-lynch | Methodology | GARP/value analysis reference |
+| research | Delegation | Multi-source parallel research |
+| review-and-fix | Delegation | Full audit → plan → fix pipeline |
+| review-my-work | Delegation | Security, test, and infrastructure audit |
+| setup-testing-workflows | Methodology | GitHub Actions test workflow generator |
+| stock-info | Methodology (data) | yfinance data provider for all analysis skills |
+| update-readme | Methodology | Scan and reconcile README.md |
+| writing-plans | Methodology | Implementation plan writer |
+
+### Agents
+
+Agent definitions in `agents/*.md` are invoked via `run as <name>`.
+
 | Path | Purpose |
-|---|---|
-| `skills/orchestrator/` | Master orchestrator — analyzes requests, discovers skills, decomposes work, and delegates to specialized sub-agents |
-| `skills/lyn-alden-dcf/` | Discounted Cash Flow analysis (Lyn Alden's tutorial methodology) |
-| `skills/peter-lynch/` | Growth at a Reasonable Price (GARP) stock analysis |
-| `skills/nassim-nicholas-taleb/` | Antifragility, black swans, and epistemic critique |
-| `skills/better-products-habits/` | Five habits for building better products faster |
-| `skills/stock-info/` | Fetch financial data for any ticker via yfinance |
-| `skills/update-readme/` | Audit and update README.md to reflect current project structure |
-| `skills/writing-plans/` | Write implementation plans for multi-step tasks |
-| `skills/setup-testing-workflows/` | Set up GitHub Actions test workflows |
-| `skills/review-and-fix/` | Full pipeline — review the repository, plan fixes, and implement them |
-| `skills/review-my-work/` | Review the repository for security vulnerabilities, test quality, and infrastructure issues |
-| `skills/fix-my-work/` | Diagnose and fix issues in the repository |
-| `skills/financial-analysis/` | Financial analysis pipeline — research, DCF, and evaluation |
-| `skills/create-skill/` | Create a new skill in the project with research, synthesis, planning, and writing phases |
-| `skills/research/` | Multi-source research (arxiv, pubmed, github, archive) with parallel search tools |
-| `skills/adr/` | Architecture decision record workflow |
+|------|---------|
+| `agents/financial-analyst.md` | Financial analyst (DCF, balance sheet, cash flow) |
+| `agents/reviewer.md` | Orchestrator for code review — invokes multiple auditors |
+| `agents/gitops-expert.md` | GitOps audit (ArgoCD/Flux configurations) |
+| `agents/shared-workflow.md` | Cross-agent collaboration rules |
 
 ### Other
 
 | Path | Purpose |
-|---|---|
-| `docs/plans/` | Implementation plans |
-| `work/` | Consultation artifacts (todo, response, done, recap directories) |
-
-## Adding an agent
-
-Create `agents/<name>.md` with YAML frontmatter and agent instructions. The agent will then be discoverable by the orchestrator skill and available for direct invocation.
-
-```
----
-name: <agent-name>
-description: <one-line description of expertise>
----
-
-<full agent instructions>
-```
-
-Agents that need to consult other agents should reference the `agents/shared-workflow.md` collaboration rules.
+|------|---------|
+| `docs/plans/` | Implementation plans (read-only) |
+| `docs/decisions/` | Architecture Decision Records (ADRs) |
+| `work/` | Ephemeral consultation artifacts (todo, response, done, recap) |
+| `skills/README.md` | Quick reference for all skills and how to invoke them |
 
 ## Adding a skill
 
-Create `skills/<name>/SKILL.md` following the standard skill format (YAML frontmatter with `name` and `description`, then markdown body). Skills are auto-discovered by pi and available via `/skill:<name>`. For the full skill creation workflow, use:
+Create `skills/<name>/SKILL.md` following the standard format:
+
+```yaml
+---
+name: <skill-name>
+description: > <one-line summary>
+---
+
+# Title
+
+Contents...
+```
+
+Skills are auto-discovered by pi. For the full creation workflow, use:
 
 ```
-/skill:create-skill <description of the skill you want to create>
+/skill:create-skill <description>
 ```
+
+## Adding an agent
+
+Create `agents/<name>.md` with YAML frontmatter and agent instructions.
+Agents referenced by the financial-analysis skill should follow the
+cross-agent workflow in `agents/shared-workflow.md`.
 
 ## Updating this README
 
 ```
 /skill:update-readme
 ```
-
-This skill scans the project structure (agents, skills, docs) and reconciles README.md against what's actually on disk.
