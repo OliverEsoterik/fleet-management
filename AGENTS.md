@@ -2,9 +2,9 @@
 
 ## What this project is
 
-A multi-agent orchestration system for **pi** (the coding agent harness). It packages domain expertise into reusable **skills** (`plugins/`) and agent definitions (flat `.md` files at repo root) so that when you invoke pi on a task, it has curated methodology, not just LLM priors.
+A multi-agent orchestration system for **pi** (the coding agent harness). It packages domain expertise into reusable **skills** (`skills/`) and agent definitions (flat `.md` files at repo root) so that when you invoke pi on a task, it has curated methodology, not just LLM priors.
 
-The orchestrator skill (`plugins/workflows/orchestrator/`) is the primary entry point. It scans the available skills, matches them to your request, and delegates to sub-agents.
+The orchestrator skill (`skills/orchestrator/SKILL.md`) is the primary entry point. It scans available skills, matches them to your request, and delegates to sub-agents.
 
 ## Stack
 
@@ -12,7 +12,7 @@ The orchestrator skill (`plugins/workflows/orchestrator/`) is the primary entry 
 |-------|------|
 | Runtime | **pi** (the coding agent harness at `~/.local/share/pi-node/...`) |
 | Language | **Markdown** — every skill and agent definition is a `.md` file. No runtime code, no build step, no package manager. |
-| The only executable code | **Bash** scripts in `plugins/workflows/research/tools/search-*.sh` (curl + python3 for API calls). **Python** templates in `plugins/skills/lyn-alden-dcf/SKILL.md` (inline, not saved to files). |
+| The only executable code | **Bash** scripts in `skills/research/tools/search-*.sh` (curl + python3 for API calls). **Python** templates in `skills/lyn-alden-dcf/SKILL.md` (inline, not saved to files). |
 | Virtual environment | `venv/` (Python 3.12.3, empty — no packages installed). Used only if a sub-agent runs the DCF Python templates. The venv is a convenience, not a requirement. |
 | Dependencies | None. pi provides the agent runtime. Everything else is shell commands and curl. |
 | State files | `work/` — ephemeral consultation artifacts. `.pi/` — pi settings. `.pi-loop.json.lock` — pi loop lock (auto-generated, gitignored). |
@@ -22,29 +22,26 @@ The orchestrator skill (`plugins/workflows/orchestrator/`) is the primary entry 
 fleet-management/
 ├── AGENTS.md              ← THIS FILE. Rules for how the agent operates here.
 ├── README.md              ← User-facing docs. Updated via /skill:update-readme.
-├── .gitignore             ← Ignores: venv/, work/, _old/, plugins/, .pi/
-├── .pi/settings.json      ← pi config: skills path + skills directory
-├── financial-analyst.md   ← DCF valuation agent (uses lyn-alden-dcf skill)
-├── gitops-expert.md       ← GitOps audit specialist
-├── reviewer.md            ← Code review orchestrator (invokes 3 sub-agents)
-├── shared-workflow.md     ← Cross-agent consultation rules (read by all agents)
-├── plugins/
-│   ├── skills/                 ← methodology / reference
-│   │   ├── better-products-habits/
-│   │   ├── lyn-alden-dcf/
-│   │   ├── nassim-nicholas-taleb/
-│   │   ├── peter-lynch/
-│   │   ├── stock-info/
-│   │   ├── update-readme/
-│   │   └── writing-plans/
-│   ├── workflows/              ← delegation
-│   │   ├── orchestrator/
-│   │   ├── create-skill/
-│   │   ├── financial-analysis/  ← (work-in-progress, gitignored)
-│   │   ├── fix-my-work/         ← (work-in-progress, gitignored)
-│   │   ├── research/
-│   │   ├── review-and-fix/      ← (work-in-progress, gitignored)
-│   │   └── review-my-work/      ← (work-in-progress, gitignored)
+├── .gitignore             ← Ignores: venv/, work/, _old/, .pi/
+├── .pi/settings.json      ← pi config: skills path
+├── agents/                ← Agent definitions (.md files)
+├── skills/                ← All skills (SKILL.md files in subdirectories)
+│   ├── orchestrator/      ← Master orchestrator
+│   ├── create-skill/      ← Skill creation workflow
+│   ├── research/          ← Multi-source research (with tools/)
+│   ├── review-and-fix/    ← Full pipeline audit+fix
+│   ├── review-my-work/    ← Security/quality audit
+│   ├── fix-my-work/       ← Issue diagnosis and fix
+│   ├── financial-analysis/← Stock valuation
+│   ├── adr/               ← Architecture decision records
+│   ├── lyn-alden-dcf/     ← DCF valuation methodology
+│   ├── peter-lynch/       ← GARP stock analysis
+│   ├── nassim-nicholas-taleb/ ← Antifragility critique
+│   ├── better-products-habits/ ← Product habits methodology
+│   ├── stock-info/        ← Stock data fetcher (with tools/)
+│   ├── setup-testing-workflows/ ← GitHub Actions test workflow
+│   ├── update-readme/     ← README reconciler
+│   └── writing-plans/     ← Implementation plan writing
 ├── docs/plans/             ← Implementation plans. Read-only reference.
 ├── work/                   ← Ephemeral: todo/, response/, done/, recap/.
 │   ├── todo/               ← Consultation requests (primary → consultant)
@@ -59,7 +56,7 @@ fleet-management/
 ### The orchestrator is the gate
 
 Every task goes through `/skill:orchestrator <task>`. The orchestrator:
-1. Scans `plugins/` for `SKILL.md` files (reads frontmatter `name` + `description`)
+1. Scans `skills/` for `SKILL.md` files (reads frontmatter `name` + `description`)
 2. Matches the request to a skill — if the skill has a `## Delegation` section, the orchestrator follows it as a multi-phase workflow
 3. If no match: decomposes the request generically, checks each subtask against available skills for methodology references
 4. **Announces the plan before dispatching** — waits for the user to confirm
@@ -119,7 +116,7 @@ Skills are auto-discovered by pi. The orchestrator skill is not required — you
 
 ### Known issues
 
-1. **`lyn-alden-dcf` vs `lynn-alden-dcf`** — The skill directory is `plugins/skills/lyn-alden-dcf/` (one 'n'). The financial-analyst brain.md references `lynn-alden-dcf` (two 'n's). The README also uses two 'n's. These references are wrong — they will fail to resolve. **Fix:** rename the directory or correct the references. Until this is fixed, the financial-analyst agent cannot find its skill.
+1. **`lyn-alden-dcf` vs `lynn-alden-dcf`** — The skill directory is `skills/lyn-alden-dcf/` (one 'n'). The financial-analyst brain.md references `lynn-alden-dcf` (two 'n's). The README also uses two 'n's. These references are wrong — they will fail to resolve. **Fix:** rename the directory or correct the references. Until this is fixed, the financial-analyst agent cannot find its skill.
 
 2. **`review-and-fix` and `review-my-work` are redundant** — Both are delegation skills that audit security, tests, and DevOps. `review-and-fix` adds Plan + Implement phases. `review-my-work` stops at audit. One of these should be removed or merged. Both are currently gitignored (work-in-progress).
 
@@ -129,7 +126,7 @@ Skills are auto-discovered by pi. The orchestrator skill is not required — you
 
 5. **`docs/plans/2026-07-11-research-backed-skill-creation.md` is stale** — It describes converting `create-skill` from methodology to delegation. The file on disk is already a delegation skill. The plan is historical.
 
-6. **`_old/` directory** — Contains 4 skills replaced by the current `plugins/` structure. They are gitignored. They are not loaded by pi. They exist only as reference if someone wants to understand the migration. Do not use them.
+6. **`_old/` directory** — Contains 4 skills replaced by the current `skills/` structure. They are gitignored. They are not loaded by pi. They exist only as reference if someone wants to understand the migration. Do not use them.
 
 7. **No Python files committed** — The `financial-analyst` brain says to run Python scripts for DCF calculations, but there are no `.py` files, no `requirements.txt`, no `pyproject.toml`. The agent is expected to write `dcf_valuation.py` at runtime. This is intentional (the scripts are ephemeral), but it means the agent must have `yfinance` available. The `get_stock_info` tool provides yfinance stock data; the agent does not need to install it.
 
@@ -241,7 +238,7 @@ A task is done when **all** of the following are true:
    ---
    ```
 
-5. **Delegation skill structure:** A `## Delegation` section with numbered phases, agents per phase, and `Role`, `Skills`, `Output` fields per agent. Agents within a phase always run in parallel. Phases are sequential. See `plugins/workflows/create-skill/SKILL.md` for the canonical example.
+5. **Delegation skill structure:** A `## Delegation` section with numbered phases, agents per phase, and `Role`, `Skills`, `Output` fields per agent. Agents within a phase always run in parallel. Phases are sequential. See `skills/create-skill/SKILL.md` for the canonical example.
 
 6. **Methodology skill structure:** Starts with `## Overview`, then step-by-step instructions. No `## Delegation` section. The orchestrator passes the content as instructions to a single sub-agent.
 

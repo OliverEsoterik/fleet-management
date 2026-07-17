@@ -1,6 +1,6 @@
 # Fleet Management
 
-Multi-agent orchestration system using specialist agents (flat `.md` files in `agents/`) and skills in `plugins/skills/` and `plugins/workflows/`. The orchestrator skill is the primary entry point — it analyzes requests, discovers available skills, and delegates work to specialized sub-agents.
+Multi-agent orchestration system using specialist agents (`.md` files in `agents/`) and skills (`skills/<name>/SKILL.md`). The orchestrator skill is the primary entry point — it analyzes requests, discovers available skills, and delegates work to specialized sub-agents.
 
 ## How to use
 
@@ -11,7 +11,7 @@ Multi-agent orchestration system using specialist agents (flat `.md` files in `a
 ```
 
 The orchestrator skill:
-1. **Discovers** all available skills in `plugins/`
+1. **Discovers** all available skills in `skills/`
 2. **Matches** your request against skill names and descriptions
 3. **Executes** the matched skill's delegation plan, or decomposes from scratch if no direct match
 4. **Consolidates** sub-agent results into a coherent response
@@ -48,14 +48,22 @@ This invokes the agent's `<name>.md` file from the `agents/` directory and launc
 
 | Path | Purpose |
 |---|---|
-| `plugins/workflows/orchestrator/` | Master orchestrator — analyzes requests, discovers skills, decomposes work, and delegates to specialized sub-agents |
-| `plugins/skills/lynn-alden-dcf/` | Discounted Cash Flow analysis (Lyn Alden's tutorial methodology) |
-| `plugins/skills/update-readme/` | Audit and update README.md to reflect current project structure |
-| `plugins/workflows/review-and-fix/` | Full pipeline — review the repository, plan fixes, and implement them |
-| `plugins/workflows/review-my-work/` | Review the repository for security vulnerabilities, test quality, and infrastructure issues |
-| `plugins/workflows/fix-my-work/` | Diagnose and fix issues in the repository |
-| `plugins/workflows/financial-analysis/` | Diagnose and fix issues in the repository (shared with `fix-my-work`) |
-| `plugins/workflows/create-skill/` | Create a new skill in the project with research, synthesis, planning, and writing phases |
+| `skills/orchestrator/` | Master orchestrator — analyzes requests, discovers skills, decomposes work, and delegates to specialized sub-agents |
+| `skills/lyn-alden-dcf/` | Discounted Cash Flow analysis (Lyn Alden's tutorial methodology) |
+| `skills/peter-lynch/` | Growth at a Reasonable Price (GARP) stock analysis |
+| `skills/nassim-nicholas-taleb/` | Antifragility, black swans, and epistemic critique |
+| `skills/better-products-habits/` | Five habits for building better products faster |
+| `skills/stock-info/` | Fetch financial data for any ticker via yfinance |
+| `skills/update-readme/` | Audit and update README.md to reflect current project structure |
+| `skills/writing-plans/` | Write implementation plans for multi-step tasks |
+| `skills/setup-testing-workflows/` | Set up GitHub Actions test workflows |
+| `skills/review-and-fix/` | Full pipeline — review the repository, plan fixes, and implement them |
+| `skills/review-my-work/` | Review the repository for security vulnerabilities, test quality, and infrastructure issues |
+| `skills/fix-my-work/` | Diagnose and fix issues in the repository |
+| `skills/financial-analysis/` | Financial analysis pipeline — research, DCF, and evaluation |
+| `skills/create-skill/` | Create a new skill in the project with research, synthesis, planning, and writing phases |
+| `skills/research/` | Multi-source research (arxiv, pubmed, github, archive) with parallel search tools |
+| `skills/adr/` | Architecture decision record workflow |
 
 ### Other
 
@@ -81,7 +89,7 @@ Agents that need to consult other agents should reference the `agents/shared-wor
 
 ## Adding a skill
 
-Create `plugins/workflows/<name>/SKILL.md` or `plugins/skills/<name>/SKILL.md` following the standard skill format (YAML frontmatter with `name` and `description`, then markdown body). Skills are auto-discovered by pi and available via `/skill:<name>`. For the full skill creation workflow, use:
+Create `skills/<name>/SKILL.md` following the standard skill format (YAML frontmatter with `name` and `description`, then markdown body). Skills are auto-discovered by pi and available via `/skill:<name>`. For the full skill creation workflow, use:
 
 ```
 /skill:create-skill <description of the skill you want to create>
@@ -93,4 +101,4 @@ Create `plugins/workflows/<name>/SKILL.md` or `plugins/skills/<name>/SKILL.md` f
 /skill:update-readme
 ```
 
-This skill scans the project structure (agents, plugins, docs) and reconciles README.md against what's actually on disk.
+This skill scans the project structure (agents, skills, docs) and reconciles README.md against what's actually on disk.

@@ -21,8 +21,8 @@ Run these discovery commands and record what you find:
 
 ```bash
 # Skills — list every skill and read its description from frontmatter
-ls plugins/
-for d in plugins/skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; echo "---"; done; for f in plugins/workflows/*.md; do head -3 "$f" 2>/dev/null; echo "---"; done
+ls skills/
+for d in skills/*/; do head -3 "$d/SKILL.md" 2>/dev/null; echo "---"; done
 
 # Plans — list docs/plans/ files
 ls docs/plans/ 2>/dev/null
@@ -50,7 +50,7 @@ Edit `README.md` to reflect the current state. Follow the existing structure and
 
 Read the final `README.md` back and confirm it reads correctly. Check that:
 
-- Every `plugins/skills/*/` directory and `plugins/workflows/*.md` file has a row in the structure table
+- Every `skills/*/` directory has a row in the structure table
 - Path references use correct relative paths
 - No stale references to deleted directories or old workflows
 

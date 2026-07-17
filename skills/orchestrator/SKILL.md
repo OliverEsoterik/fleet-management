@@ -25,14 +25,14 @@ You are the orchestrator. You never execute work directly. Your job is to:
 
 ## Discovery Phase
 
-Before doing anything else, scan `plugins/workflows/*/SKILL.md` files and `plugins/skills/*/SKILL.md` files. Read each file's frontmatter (`name`, `description`) and full content. Build a mental map:
+Before doing anything else, scan `skills/*/SKILL.md` files. Read each file's frontmatter (`name`, `description`) and full content. Build a mental map:
 
 ```
-skill: "review-my-work"   → path: plugins/workflows/review-my-work/SKILL.md
+skill: "review-my-work"   → path: skills/review-my-work/SKILL.md
   description: "..."
   has delegation plan? yes — defines 2 agents (security, testing)
   
-skill: "lynn-alden-dcf"   → path: plugins/skills/lynn-alden-dcf/SKILL.md
+skill: "lynn-alden-dcf"   → path: skills/lyn-alden-dcf/SKILL.md
   description: "..."
   has delegation plan? no — pure methodology reference
 ```
@@ -49,7 +49,7 @@ Compare the user's request against all skill names and descriptions. If one is a
 
 A delegation plan is a `## Delegation` section in the SKILL.md that tells the orchestrator which subagents to launch, in which phases, and with which dependencies.
 
-Example: user says `/skill:orchestrator review my work`. Orchestrator finds `plugins/workflows/review-my-work/SKILL.md` which has a `## Delegation` section. The orchestrator reads it and follows it.
+Example: user says `/skill:orchestrator review my work`. Orchestrator finds `skills/review-my-work/SKILL.md` which has a `## Delegation` section. The orchestrator reads it and follows it.
 
 ### 2. No match — decompose generically
 
@@ -128,17 +128,17 @@ Example: `fix-my-work` skill has Phase 1: "run review-my-work". The orchestrator
 
 ## Delegation Skills Map
 
-Skills in `plugins/workflows/` are delegation skills. The orchestrator reads their `## Delegation` section and executes it.
+Skills in `skills/` are delegation skills. The orchestrator reads their `## Delegation` section and executes it.
 
 | Skill | Path | Phases |
 |-------|------|--------|
-| orchestrator | `plugins/workflows/orchestrator/SKILL.md` | N/A (meta) |
-| create-skill | `plugins/workflows/create-skill/SKILL.md` | 4 phases |
-| research | `plugins/workflows/research/SKILL.md` | 1 phase (parallel) |
-| review-my-work | `plugins/workflows/review-my-work/SKILL.md` | 1 phase (parallel) |
-| review-and-fix | `plugins/workflows/review-and-fix/SKILL.md` | 3 phases |
-| fix-my-work | `plugins/workflows/fix-my-work/SKILL.md` | 2 phases |
-| financial-analysis | `plugins/workflows/financial-analysis/SKILL.md` | 2 phases |
+| orchestrator | `skills/orchestrator/SKILL.md` | N/A (meta) |
+| create-skill | `skills/create-skill/SKILL.md` | 4 phases |
+| research | `skills/research/SKILL.md` | 1 phase (parallel) |
+| review-my-work | `skills/review-my-work/SKILL.md` | 1 phase (parallel) |
+| review-and-fix | `skills/review-and-fix/SKILL.md` | 3 phases |
+| fix-my-work | `skills/fix-my-work/SKILL.md` | 2 phases |
+| financial-analysis | `skills/financial-analysis/SKILL.md` | 2 phases |
 
 ---
 
@@ -205,7 +205,7 @@ You are [ROLE]
 Task: [what to do — specific, concrete]
 
 Skills available (read before starting):
-- plugins/skills/<name>/SKILL.md or plugins/workflows/<name>/SKILL.md — what it's for
+- skills/<name>/SKILL.md — what it's for
 
 Tools available: Read, Write, Edit, Bash, Grep, WebSearch
 

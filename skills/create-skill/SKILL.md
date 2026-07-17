@@ -110,8 +110,8 @@ Omit the optional researchers if the topic has no clear software/historical dime
   Write the plan to `work/<skill-name>/plan.md`.
   
   Include the output path:
-  - If methodology: `plugins/skills/<name>/SKILL.md`
-  - If delegation: `plugins/workflows/<name>/SKILL.md`
+  - If methodology: `skills/<name>/SKILL.md`
+  - If delegation: `skills/<name>/SKILL.md`
   
   Skills: [create-skill]  (read this skill's SKILL.md for formatting rules)
   Output: `work/<skill-name>/plan.md`
