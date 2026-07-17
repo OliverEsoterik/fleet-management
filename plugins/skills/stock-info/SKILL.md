@@ -24,7 +24,7 @@ fetching.
 
 ## Available Scripts
 
-All scripts live in `skills/stock-info/tools/`. Each accepts a ticker symbol
+All scripts live in `plugins/skills/stock-info/tools/`. Each accepts a ticker symbol
 as the first argument and outputs structured data to stdout.
 
 | Script | Output | Key Fields |
@@ -52,17 +52,17 @@ Each script also accepts an optional second argument for the number of periods
 In a SKILL.md file, reference the data tool via bash:
 
 ```bash
-bash skills/stock-info/tools/get-info.sh AAPL
-bash skills/stock-info/tools/get-balance-sheet.sh MSFT 3
-bash skills/stock-info/tools/get-all.sh NVDA
+bash plugins/skills/stock-info/tools/get-info.sh AAPL
+bash plugins/skills/stock-info/tools/get-balance-sheet.sh MSFT 3
+bash plugins/skills/stock-info/tools/get-all.sh NVDA
 ```
 
 ### From the command line
 
 ```bash
-bash skills/stock-info/tools/get-info.sh AAPL | python3 -m json.tool
-bash skills/stock-info/tools/get-income-statement.sh MSFT
-bash skills/stock-info/tools/get-all.sh NVDA > nvda-data.json
+bash plugins/skills/stock-info/tools/get-info.sh AAPL | python3 -m json.tool
+bash plugins/skills/stock-info/tools/get-income-statement.sh MSFT
+bash plugins/skills/stock-info/tools/get-all.sh NVDA > nvda-data.json
 ```
 
 ---
@@ -315,9 +315,9 @@ To make your skill depend on `stock-info`, add this note in your SKILL.md:
 
 ```
 > **Data source:** This skill uses the `stock-info` skill for financial data.
-> Install it at: `skills/stock-info/`
-> Fetch data via: `bash skills/stock-info/tools/get-info.sh <ticker>`
-> `bash skills/stock-info/tools/get-balance-sheet.sh <ticker>`
+> Install it at: `plugins/skills/stock-info/`
+> Fetch data via: `bash plugins/skills/stock-info/tools/get-info.sh <ticker>`
+> `bash plugins/skills/stock-info/tools/get-balance-sheet.sh <ticker>`
 ```
 
 And in agent instructions, replace:
@@ -326,4 +326,4 @@ And in agent instructions, replace:
 
 with:
 
-> `bash skills/stock-info/tools/get-info.sh <ticker>` (parsed with python3 - json.tool or jq)
+> `bash plugins/skills/stock-info/tools/get-info.sh <ticker>` (parsed with python3 - json.tool or jq)

@@ -3,7 +3,7 @@ name: orchestrator
 description: >
   Master orchestrator for the fleet-management project. Use this for any
   task — review, audit, analysis, implementation, debugging, or research.
-  This skill analyzes the request, discovers sub-skills, decomposes the
+  This workflow analyzes the request, discovers sub-skills, decomposes the
   work into independent tasks, and delegates to specialized sub-agents.
 ---
 
@@ -13,7 +13,7 @@ description: >
 
 You are the orchestrator. You never execute work directly. Your job is to:
 
-1. **Discover** all available skills in the project's `skills/` directory
+1. **Discover** all available skills in the project's `plugins/` directory
 2. **Match** the user's request against skill names and descriptions
 3. **If a match is found:** execute the skill's delegation plan directly
 4. **If no match is found:** decompose the request from scratch, using skills as methodology references where applicable
@@ -25,14 +25,14 @@ You are the orchestrator. You never execute work directly. Your job is to:
 
 ## Discovery Phase
 
-Before doing anything else, scan all subdirectories of the project's `skills/` directory for `SKILL.md` files. Read each file's frontmatter (`name`, `description`) and full content. Build a mental map:
+Before doing anything else, scan `plugins/workflows/*/SKILL.md` files and `plugins/skills/*/SKILL.md` files. Read each file's frontmatter (`name`, `description`) and full content. Build a mental map:
 
 ```
-skill: "review-my-work"   → path: skills/review-my-work/SKILL.md
+skill: "review-my-work"   → path: plugins/workflows/review-my-work/SKILL.md
   description: "..."
   has delegation plan? yes — defines 2 agents (security, testing)
   
-skill: "lynn-alden-dcf"   → path: skills/lynn-alden-dcf/SKILL.md
+skill: "lynn-alden-dcf"   → path: plugins/skills/lynn-alden-dcf/SKILL.md
   description: "..."
   has delegation plan? no — pure methodology reference
 ```
@@ -49,7 +49,7 @@ Compare the user's request against all skill names and descriptions. If one is a
 
 A delegation plan is a `## Delegation` section in the SKILL.md that tells the orchestrator which subagents to launch, in which phases, and with which dependencies.
 
-Example: user says `/skill:orchestrator review my work`. Orchestrator finds `skills/review-my-work/SKILL.md` which has a `## Delegation` section. The orchestrator reads it and follows it.
+Example: user says `/skill:orchestrator review my work`. Orchestrator finds `plugins/workflows/review-my-work/SKILL.md` which has a `## Delegation` section. The orchestrator reads it and follows it.
 
 ### 2. No match — decompose generically
 
@@ -126,6 +126,22 @@ Example: `fix-my-work` skill has Phase 1: "run review-my-work". The orchestrator
 
 ---
 
+## Delegation Skills Map
+
+Skills in `plugins/workflows/` are delegation skills. The orchestrator reads their `## Delegation` section and executes it.
+
+| Skill | Path | Phases |
+|-------|------|--------|
+| orchestrator | `plugins/workflows/orchestrator/SKILL.md` | N/A (meta) |
+| create-skill | `plugins/workflows/create-skill/SKILL.md` | 4 phases |
+| research | `plugins/workflows/research/SKILL.md` | 1 phase (parallel) |
+| review-my-work | `plugins/workflows/review-my-work/SKILL.md` | 1 phase (parallel) |
+| review-and-fix | `plugins/workflows/review-and-fix/SKILL.md` | 3 phases |
+| fix-my-work | `plugins/workflows/fix-my-work/SKILL.md` | 2 phases |
+| financial-analysis | `plugins/workflows/financial-analysis/SKILL.md` | 2 phases |
+
+---
+
 ## Generic Decomposition (No Match)
 
 When no delegation skill matches, decompose the request manually:
@@ -189,7 +205,7 @@ You are [ROLE]
 Task: [what to do — specific, concrete]
 
 Skills available (read before starting):
-- skills/<name>/SKILL.md — what it's for
+- plugins/skills/<name>/SKILL.md or plugins/workflows/<name>/SKILL.md — what it's for
 
 Tools available: Read, Write, Edit, Bash, Grep, WebSearch
 

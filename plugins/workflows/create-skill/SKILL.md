@@ -109,6 +109,10 @@ Omit the optional researchers if the topic has no clear software/historical dime
   
   Write the plan to `work/<skill-name>/plan.md`.
   
+  Include the output path:
+  - If methodology: `plugins/skills/<name>/SKILL.md`
+  - If delegation: `plugins/workflows/<name>/SKILL.md`
+  
   Skills: [create-skill]  (read this skill's SKILL.md for formatting rules)
   Output: `work/<skill-name>/plan.md`
 
@@ -117,7 +121,7 @@ Omit the optional researchers if the topic has no clear software/historical dime
 ### Phase 4 — Write (sequential, after Phase 3)
 
 - **Agent: skill-writer**
-  Role: You are a skill writer. Read `work/<skill-name>/plan.md` and write the final skill file at `skills/<name>/SKILL.md`.
+  Role: You are a skill writer. Read `work/<skill-name>/plan.md` and write the final skill file at the path specified in the plan.
 
   Follow the plan exactly. Use the formatting conventions from the create-skill methodology reference:
   
@@ -129,7 +133,7 @@ Omit the optional researchers if the topic has no clear software/historical dime
   Write the complete file. Return the path to the created file.
   
   Skills: [create-skill]  (read this skill's SKILL.md for formatting rules)
-  Output: `skills/<name>/SKILL.md`
+  Output: the path specified in the plan
   
   After confirming the file was written successfully, clean up `work/<skill-name>/` by deleting it.
 
@@ -137,6 +141,7 @@ Omit the optional researchers if the topic has no clear software/historical dime
 
 ### After All Phases
 
-1. Verify the skill file exists at `skills/<name>/SKILL.md`
+1. Verify the skill file exists at the path specified in the plan
 2. Delete `work/<skill-name>/` directory (ephemeral research artifacts)
 3. Report to user: what was created, what type it is, where it lives, and any notable decisions made during the process
+

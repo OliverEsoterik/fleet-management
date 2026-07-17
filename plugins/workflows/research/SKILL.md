@@ -15,7 +15,7 @@ query and produce a consolidated report. You specify which sources to search;
 each source is handled by a dedicated tool call.
 
 **Designed for extensibility:** adding a new source means creating one tool
-script in `skills/research/tools/search-<source>.sh` and adding one entry to
+script in `plugins/workflows/research/tools/search-<source>.sh` and adding one entry to
 the source table below. No other code changes needed.
 
 ---
@@ -129,19 +129,19 @@ Each subagent prompt includes:
 
 **Agent: arxiv-researcher**
 Role: You are an arXiv research specialist.
-Tool: `bash skills/research/tools/search-arxiv.sh "<query>" <max_results>`
+Tool: `bash plugins/workflows/research/tools/search-arxiv.sh "<query>" <max_results>`
 Where `<max_results>` defaults to 10. Pipe stdout to a markdown file.
 Output: `work/research/sources/arxiv.md`
 
 **Agent: github-researcher**
 Role: You are a GitHub research specialist.
-Tool: `bash skills/research/tools/search-github.sh "<query>" <max_results>`
+Tool: `bash plugins/workflows/research/tools/search-github.sh "<query>" <max_results>`
 Where `<max_results>` defaults to 10.
 Output: `work/research/sources/github.md`
 
 **Agent: pubmed-researcher**
 Role: You are a PubMed research specialist.
-Tool: `bash skills/research/tools/search-pubmed.sh "<query>" <max_results>`
+Tool: `bash plugins/workflows/research/tools/search-pubmed.sh "<query>" <max_results>`
 Where `<max_results>` defaults to 10.
 Output: `work/research/sources/pubmed.md`
 
@@ -149,7 +149,7 @@ Output: `work/research/sources/pubmed.md`
 Role: You are an Archive.org research specialist. Note: Archive.org is best for
 historical documents, primary sources, books, and media — not academic papers.
 Search terms should be broad.
-Tool: `bash skills/research/tools/search-archive.sh "<query>" <max_results>`
+Tool: `bash plugins/workflows/research/tools/search-archive.sh "<query>" <max_results>`
 Where `<max_results>` defaults to 10.
 Output: `work/research/sources/archive.md`
 
@@ -220,7 +220,7 @@ and where the report lives.
 
 ## Adding a New Source
 
-1. Create `skills/research/tools/search-<name>.sh`
+1. Create `plugins/workflows/research/tools/search-<name>.sh`
    - Accepts query as first argument, max results as optional second argument
    - Outputs markdown to stdout
    - Fails gracefully on error (exit code 1, error message to stdout)
