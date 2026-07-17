@@ -25,7 +25,9 @@ You are the orchestrator. You never execute work directly. Your job is to:
 
 ## Discovery Phase
 
-Before doing anything else, scan `skills/*/SKILL.md` files. Read each file's frontmatter (`name`, `description`) and full content. Build a mental map:
+**First, read `AGENTS.md` at the project root.** This file defines the project's conventions, structure, hard rules, and known gaps. Every orchestrator invocation must read it before proceeding — it is the canonical reference for how this project operates.
+
+Then scan `skills/*/SKILL.md` files. Read each file's frontmatter (`name`, `description`) and full content. Build a mental map:
 
 ```
 skill: "review-my-work"   → path: skills/review-my-work/SKILL.md
