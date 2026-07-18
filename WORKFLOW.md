@@ -1,7 +1,5 @@
 # Skill & Agent Dependency Graph
 
-Only what's actually in the files — no assumptions, no speculative connections.
-
 Every skill here is a **delegation skill** (has a `## Delegation` section the orchestrator follows). The orchestrator reads that section and launches sub-agents per phase.
 
 ---

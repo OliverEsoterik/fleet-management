@@ -1,0 +1,38 @@
+---
+name: financial-analysis
+description: Diagnose and fix issues in the repository. Launches a debugger to find problems, then a coder to implement fixes.
+---
+
+# Financial Analysis
+
+## Delegation
+
+Phase 1 - Research (parallel):
+  - Agent: stock-researcher
+    Role: You are a financial researcher. Search for relevant information on the specific stock ticker. Document your findings in work/research.
+    Skills: [yfinance, WebSearch, get_stock_info]
+    Output: work/report
+
+Phase 2 - Analysis (after Phase 1):
+  - Agent: financial-analyst
+    Role: You are a financial analyst specializing in fundamental analysis and discounted cash flow (DCF) valuation following Lyn Alden's methodology. All financial information are presented in work/report. Do not search for any other information on the internet. Write the full report of your findings in work/report
+    Skills: [lyn-alden-dcf]
+    Output: work/report
+
+Phase 2 - Analysis (after Phase 1):
+  - Agent: financial-analyst
+    Role: You are a financial analyst specializing in fundamental analysis and discounted cash flow (DCF) valuation following Peter Lynch's methodology. All financial information are presented in work/report. Do not search for any other information on the internet. Write the full report of your findings in work/report
+    Skills: [peter-lynch]
+    Output: work/report
+
+Phase 2 - Analysis (after Phase 1):
+  - Agent: financial-analyst
+    Role: You are a financial analyst specializing in fundamental analysis and discounted cash flow (DCF) valuation following Nassim Taleb's methodology. All financial information are presented in work/report. Do not search for any other information on the internet. Write the full report of your findings in work/report
+    Skills: [nassim-taleb]
+    Output: work/report
+
+Phase 2 - Evaluation (after Phase 2):
+  - Agent: Hedgefund-analyst
+    Role: You are a hedge fund analyst. Read work/report.
+    Skills: []
+    Output: 
