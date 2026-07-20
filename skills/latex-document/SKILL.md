@@ -12,6 +12,8 @@ tools: Read, Write, Bash
 
 Write clean, compilable LaTeX. Prefer semantic markup and standard packages. This skill covers creating new documents, editing existing ones, and troubleshooting compilation errors.
 
+Source: `latex2e.pdf` unofficial reference manual (https://texdoc.org/serve/latex2e.pdf/0)
+
 ## When to Use
 
 - The user asks for a PDF document, paper, report, or CV
@@ -28,9 +30,29 @@ Write clean, compilable LaTeX. Prefer semantic markup and standard packages. Thi
 5. **Use `\input` for sections.** Split the document into `sections/` directory with one file per section. Keep the main `.tex` file as a skeleton.
 6. **Compile with `latexmk`** if available. It handles multiple passes (bibtex, glossary, etc.) automatically.
 
+## Selecting a Reference File
+
+When the task matches a row in the table below, **read the corresponding reference file** from `skills/latex-document/references/` to get the full details. The reference files contain templates, package options, and examples extracted from the `latex2e.pdf` manual.
+
+| If the task involves... | Read this reference | Contents |
+|---|---|---|
+| Choosing a document class (article, book, report, beamer, letter) | `references/templates.md` | All templates with options |
+| Font selection, sizes, families, math fonts | `references/fonts.md` | NFSS, fontenc, fontspec, math fonts |
+| Page layout, margins, columns | `references/layout.md` | \onecolumn, geometry, \setlength |
+| Sectioning, TOC, appendix | `references/sectioning.md` | \section through \subparagraph, tocdepth |
+| Cross-references, labels, cleveref | `references/cross-references.md` | \label, \ref, \pageref, \autoref |
+| Environments (itemize, enumerate, minipage, verbatim, etc.) | `references/environments.md` | All important environments |
+| Line breaks, page breaks, footnotes, spacing, lengths | `references/spacing.md` | \\, \newpage, \footnote, \setlength, \hspace |
+| Math formulas, symbols, matrices, equations | `references/math.md` | amsmath, \frac, \begin{align}, Greek letters |
+| Graphics, color, boxes | `references/graphics-color.md` | \includegraphics, \textcolor, \fbox, \parbox |
+| Special characters, accents, dashes, quotes | `references/special-characters.md` | Reserved chars, accents, \textcopyright, \today |
+| Compilation, latexmk, splitting input, CLI options | `references/compilation.md` | \input, \include, \includeonly, engines, options |
+
+Only read the reference file(s) that match the task. Do not read all of them.
+
 ## Minimal Template
 
-Use this unless the user provides their own preamble or a journal template:
+Use this unless the user provides their own preamble or a journal template. For other classes (book, report, beamer, letter), see `references/templates.md`.
 
 ```latex
 \documentclass[11pt,a4paper]{article}
@@ -85,7 +107,7 @@ Use this unless the user provides their own preamble or a journal template:
 \end{figure}
 ```
 
-Reference in text with `\ref{fig:result}`.
+Reference in text with `\ref{fig:result}`. For more graphics options, see `references/graphics-color.md`.
 
 ### Adding a table
 
@@ -105,6 +127,8 @@ Reference in text with `\ref{fig:result}`.
 \end{table}
 ```
 
+For more tabular and environment options, see `references/environments.md`.
+
 ### Adding an equation
 
 ```latex
@@ -113,6 +137,8 @@ Reference in text with `\ref{fig:result}`.
   \mathcal{L} = -\sum_{i} y_i \log(\hat{y}_i)
 \end{equation}
 ```
+
+For math symbols, matrices, align environments, see `references/math.md`.
 
 ### Citing references
 
@@ -142,6 +168,8 @@ pdflatex document.tex
 # Using xelatex (for Unicode/OpenType fonts)
 xelatex document.tex
 ```
+
+For engine options, CLI flags, and splitting input, see `references/compilation.md`.
 
 ## Troubleshooting
 
