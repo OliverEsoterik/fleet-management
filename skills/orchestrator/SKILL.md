@@ -1,270 +1,424 @@
 ---
 name: orchestrator
 description: >
-  Master orchestrator for the fleet-management project. Use this for any
-  task — review, audit, analysis, implementation, debugging, or research.
-  This workflow analyzes the request, discovers sub-skills, decomposes the
-  work into independent tasks, and delegates to specialized sub-agents.
+  Graph-engine orchestrator for the fleet-management project. Routes work
+  through a data-driven state machine with autonomous nodes, micro-loops,
+  and local human-in-the-loop interaction. No central manager — the
+  shared state drives all transitions.
 ---
 
-# Orchestrator — Multi-Agent Task Decomposition & Dispatch
+# Orchestrator — Graph Engine (State Machine Router)
 
 ## Overview
 
-You are the orchestrator. You never execute work directly. Your job is to:
+The orchestrator is a **state router**: it reads a shared state object, selects the next node to execute based on routing rules, launches that node, and writes the result back. The state machine runs autonomously — the orchestrator does not own the logic, it only follows transitions.
 
-1. **Discover** all available skills in the project's `plugins/` directory
-2. **Match** the user's request against skill names and descriptions
-3. **If a match is found:** execute the skill's delegation plan directly
-4. **If no match is found:** decompose the request from scratch, using skills as methodology references where applicable
-5. **Consolidate** all subagent results into a coherent response
+**Announce at start:** "I'm using the graph engine to route this through the state machine."
 
-**Announce at start:** "I'm using the orchestrator skill to break this down and delegate."
+### Flow
+
+```
+User request → decomposer → chain-planner (user picks a chain)
+  → confirm (user approves) → execute nodes → consolidate
+```
+
+The chain-planner is mandatory on every invocation. Even for a one-line fix, you see the available skill chains and pick one.
+
+### Architecture
+
+```
+                    ┌──────────────────────────┐
+                    │     SHARED STATE         │
+                    │  work/graph/state.json   │
+                    │  status, chains, nodes{} │
+                    └──────────┬───────────────┘
+                               │
+                   ┌───────────┴───────────┐
+                   │        ROUTER         │
+                   │  f(state) -> next     │
+                   └───────────┬───────────┘
+                               │
+          ┌──────────┬─────────┼─────────┬──────────┐
+          ▼          ▼         ▼         ▼          ▼
+   ┌──────────┐  ┌────────┐ ┌──────┐ ┌───────┐ ┌──────────┐
+   │ chain-   │  │confirm │ │coder │ │audit  │ │human_    │
+   │ planner  │  │(gate)  │ │      │ │nodes* │ │input     │
+   └─────┬────┘  └───┬────┘ └──┬───┘ └───┬───┘ └────┬─────┘
+         │           │         │         │          │
+         └───────────┴─────────┴─────────┴──────────┘
+                                     │
+                                     ▼
+                              ┌──────────────┐
+                              │ consolidator │
+                              └──────────────┘
+```
+
+*Audit nodes: security-reviewer, test-auditor (configurable, defined by chain)
+
+### Key properties
+
+- **State router, not puppeteer.** The orchestrator never copies text between agents. Nodes write to shared state; the next node reads from it. The state is the conduit.
+- **Chain planner before confirm gate.** You pick a skill chain first. Then the confirm gate shows the detailed plan for that chain.
+- **Token isolation.** Every sub-agent gets `inherit_context: false` and only the relevant slice of shared state — never the full state or other agents' history.
+- **Autonomous micro-loops.** coder -> audit -> (fail -> coder) loops with an iteration counter. Max 5 iterations, then escalates to human.
 
 ---
 
-## Discovery Phase
+## 1. Shared State
 
-**First, read `AGENTS.md` at the project root.** This file defines the project's conventions, structure, hard rules, and known gaps. Every orchestrator invocation must read it before proceeding — it is the canonical reference for how this project operates.
+The shared state lives at `work/graph/state.json` and is the single source of truth. Every node reads from it, executes, writes back. The orchestrator creates it on first invocation.
 
-Then scan `skills/*/SKILL.md` files. Read each file's frontmatter (`name`, `description`) and full content. Build a mental map:
+**Schema:** See `skills/orchestrator/schema.json` for the full JSON structure.
 
-```
-skill: "review-my-work"   → path: skills/review-my-work/SKILL.md
-  description: "..."
-  has delegation plan? yes — defines 2 agents (security, testing)
-  
-skill: "lynn-alden-dcf"   → path: skills/lyn-alden-dcf/SKILL.md
-  description: "..."
-  has delegation plan? no — pure methodology reference
-```
+### Status values
 
-This scan happens on every invocation. Skills can be added/removed between runs.
-
----
-
-## Routing: Match vs No-Match
-
-### 1. Try to match a delegation skill
-
-Compare the user's request against all skill names and descriptions. If one is a clear match, that skill's **delegation plan** takes over.
-
-A delegation plan is a `## Delegation` section in the SKILL.md that tells the orchestrator which subagents to launch, in which phases, and with which dependencies.
-
-Example: user says `/skill:orchestrator review my work`. Orchestrator finds `skills/review-my-work/SKILL.md` which has a `## Delegation` section. The orchestrator reads it and follows it.
-
-### 2. No match — decompose generically
-
-If no skill name/description matches the request, the orchestrator decomposes the request into tasks on its own. For each subtask, it checks if any skill can serve as a **methodology reference** for the subagent.
-
-Example: user says `/skill:orchestrator value NVDA`. No skill named "value nvda" exists. The orchestrator decomposes into tasks like "collect financials", "project cash flows", "calculate DCF". It finds `lynn-alden-dcf` skill and includes it as methodology for the DCF subagent.
-
-### 3. Announce the plan
-
-Before launching any subagents, show the user the breakdown:
-
-```
-Plan for: review my work
-Source: delegation skill "review-my-work"
-Phase 1 (parallel):
-  - security-reviewer: audit repo for vulnerabilities
-  - test-auditor: audit test coverage
-Phase 2 (after Phase 1):
-  - solution-architect: read audit reports, create fix plan
-Phase 3 (after Phase 2):
-  - coder: implement fix plan
-
-OK? (y/n)
-```
-
-Wait for user confirmation before dispatching.
+| Status | Meaning |
+|--------|---------|
+| `START` | Initial state. |
+| `DECOMPOSING` | Breaking request into tasks. |
+| `CHAINING` | Building chain proposals. |
+| `CONFIRM` | Waiting for user approval. |
+| `CODING` | Coder node active. |
+| `REVIEWING` | Audit node active. |
+| `HUMAN_REVIEW` | Waiting for user input (paused). |
+| `ERROR` | Unrecoverable error. |
+| `READY` | All nodes complete. |
+| `COMPLETE` | Work finished. |
 
 ---
 
-## Delegation Plan Format
+## 2. Nodes
 
-Skills that define subagent workflows use a `## Delegation` section. The orchestrator reads this section to know what to launch.
+Each node is an autonomous sub-agent. The orchestrator reads the relevant state slice, constructs a prompt, launches the sub-agent with `inherit_context: false`, reads its output, writes to state, and routes.
 
-```
-## Delegation
+### Node: `decomposer`
 
-Phase 1 — Audit (parallel):
-  - Agent: security-reviewer
-    Role: You are a security expert. Audit the repo for OWASP Top 10, secret exposure, auth weaknesses.
-    Skills: []
-    Output: work/audit/security-report.md
+**Trigger:** `state.status == "START"` OR `state.routing.next_node == "decomposer"`
 
-  - Agent: test-auditor
-    Role: You are a testing expert. Audit test coverage, missing edge cases, test infrastructure.
-    Skills: []
-    Output: work/audit/test-report.md
+**Input:** `state.user_request`
 
-Phase 2 — Plan (after Phase 1):
-  - Agent: solution-architect
-    Role: You are a solution architect. Read work/audit/*.md and create an implementation plan.
-    Skills: []
-    Output: work/plan/fix-plan.md
+**Behavior:**
+1. Scan `skills/*/SKILL.md` — read frontmatter (`name`, `description`). For graph skills, also read their `## Graph` nodes list.
+2. Build a `skill_index`: each entry has `name`, `description`, `type` (graph|methodology), `nodes` (list of node names if graph), and `produces` (what outputs the skill generates, inferred from its graph output paths).
+3. Scan `agents/*.md` — read frontmatter (`name`, `description`, `skills`, `model`, `tools`).
+4. Build an `agent_index`: each entry has `name`, `description`, `skills`, `model`, and `tools`.
+5. Match the user request against skill names/descriptions and agent names/descriptions.
+6. Decompose the request into tasks, assign each task to a node.
 
-Phase 3 — Implement (after Phase 2):
-  - Agent: coder
-    Role: You are a senior developer. Read work/plan/fix-plan.md and implement the fixes.
-    Skills: []
-    Output: (files modified in place)
-```
+**Output (writes to state):** See `skills/orchestrator/examples/decomposer-output.md` for the full format.
 
-### Phase rules
-
-- Agents within a phase are **independent** — launch all with `run_in_background: true`
-- Phases are **sequential** — Phase 2 starts only after all agents in Phase 1 finish
-- The `Role` field becomes the subagent's primary instruction
-- The `Skills` field lists skill names that the orchestrator should read and include in the subagent's prompt (empty means no skill references needed)
-- The `Output` field tells the orchestrator where to look for results
-
-### Recursive skill references
-
-If a Phase delegates to an agent whose `Role` or task matches another skill name, the orchestrator should read that skill and include its delegation plan or methodology as context.
-
-Example: `fix-my-work` skill has Phase 1: "run review-my-work". The orchestrator finds `review-my-work` skill, reads its delegation plan, and executes it as a sub-phase.
+**Routing:** Always -> `chain-planner`
 
 ---
 
-## Delegation Skills Map
+### Node: `chain-planner`
 
-Skills in `skills/` are delegation skills. The orchestrator reads their `## Delegation` section and executes it.
+**Trigger:** `state.routing.next_node == "chain-planner"`
 
-| Skill | Path | Phases |
-|-------|------|--------|
-| orchestrator | `skills/orchestrator/SKILL.md` | N/A (meta) |
-| create-skill | `skills/create-skill/SKILL.md` | 4 phases |
-| research | `skills/research/SKILL.md` | 1 phase (parallel) |
-| review-my-work | `skills/review-my-work/SKILL.md` | 1 phase (parallel) |
-| review-and-fix | `skills/review-and-fix/SKILL.md` | 3 phases |
-| fix-my-work | `skills/fix-my-work/SKILL.md` | 2 phases |
-| financial-analysis | `skills/financial-analysis/SKILL.md` | 3 phases |
+**Mandatory.** Runs on every invocation. You see chain options before any work starts.
+
+**Input:** `state.user_request`, `state.decomposition.tasks`, `state.skill_index`, `state.agent_index`
+
+**Behavior:**
+
+1. Set `state.status = "CHAINING"`.
+2. Build chain proposals.
+
+### Step A: Check if the user already described a chain
+
+Scan the user's request for chain language:
+- Sequential connectors: "first... then", "next", "after that", "and then"
+- Ordered lists: "1." "2." "3.", "step 1" "step 2"
+- Explicit skill or agent names (matched against both indices)
+
+**If chain language is detected:**
+- Parse into individual steps. Each connector-separated clause is one step.
+- For each step, match against `agent_index` first, then `skill_index`:
+  - **Agent match (highest priority):** Exact name match. Use the agent's `skills` list and `model`. Step type becomes `"agent"`.
+  - **Skill match:** Name match, description keyword match, or task verb match.
+  - **Agent fallback by skill:** If no agent matched by name, check if any agent lists the matched skill in its `skills` field. If yes, prefer the agent.
+  - If no match: treat as a generic `coder` task.
+- Build **exactly as described**. No collapsing, dedup, or reordering. Add warnings as notes.
+- Add a `consolidator` step at the end if not already present.
+- Assign models per step — agent frontmatter model takes precedence.
+- Show as a single resolved chain — **no menu.**
+
+**See `skills/orchestrator/examples/chain-proposal-described.md` for output format.**
+
+### Step B: No chain language detected — show menu
+
+Show standard chains built dynamically from the indices:
+
+- **Fast** — matched skill (or agent) -> consolidator
+- **Safe** — matched skill -> code-review -> fix issues -> consolidator
+- **Thorough** — architect -> matched skill -> sre -> code-review -> fix issues -> consolidator
+
+If an agent matches the request, use it instead of the raw skill. If none fit, the user can rephrase with "first X then Y".
+
+**See `skills/orchestrator/examples/chain-proposal-menu.md` for output format.**
+
+### Model assignment per step
+
+| Step type | Model |
+|-----------|-------|
+| architect, planning, ADR writing | `sonnet` |
+| coding, implementation | `default` |
+| review, audit, research | `haiku` |
+| fix review issues | `sonnet` |
+| no clear type | `default` |
+
+**Agent override:** Agent's frontmatter `model` takes precedence over the table.
+
+### Wait and write
+
+3. Wait for user response. Set `selected_chain` accordingly.
+
+**Output (writes to state):**
+```json
+{
+  "status": "CHAINING",
+  "chains": [
+    { "name": "Custom", "description": "User-described chain",
+      "steps": [
+        { "type": "skill", "name": "architect", "model": "sonnet" },
+        { "type": "agent", "name": "gitops-expert", "model": "haiku",
+          "tools": ["Read", "Write", "Bash", "Grep", "WebSearch"],
+          "skills": ["sre", "code-review"] },
+        { "type": "node", "name": "coder", "model": "default" },
+        { "type": "node", "name": "consolidator", "model": "default" }
+      ]
+    }
+  ],
+  "selected_chain": 0,
+  "routing": { "last_node": "chain-planner", "next_node": "confirm", "reason": "chain resolved from description" }
+}
+```
+
+**Agent step fields:** `type`, `name`, `model`, `tools` (mapped to subagent type at launch), `skills`.
+
+**Routing:** Always -> `confirm`. If user aborts -> consolidator.
+
+**Edge cases:**
+- **Partial steps:** Build described steps + Fast-style defaults for the rest.
+- **No skills or agents matched:** Build around generic nodes (coder, human_input, consolidator).
+- **Unmatched step:** Leave as generic `coder`, note to user.
+- **Agent with empty skills field:** Use agent without referencing a specific skill.
+- **Multiple agents match:** Prefer the most specific description. If ambiguous, list as options.
 
 ---
 
-## Generic Decomposition (No Match)
+### Node: `confirm`
 
-When no delegation skill matches, decompose the request manually:
+**Trigger:** `state.routing.next_node == "confirm"`
 
-### 1. Break into tasks
+**Mandatory approval gate.**
 
-Identify each unit of work. Each task must be:
-- Done by one subagent independently
-- Mapped to a domain of expertise
-- Small enough to fit one subagent's context
+**Input:** `state.user_request`, `state.decomposition`, `state.chains`, `state.selected_chain`, `state.skill_index`, `state.agent_index`, `state.nodes`
 
-### 2. Determine dependencies
+**Behavior:**
+1. Set `state.status = "CONFIRM"`.
+2. Read the selected chain.
+3. Activate nodes from chain steps (skill -> graph nodes ready, agent -> coder ready with agent context, node -> built-in node ready, fix -> coder with dependencies).
+4. Present the plan. **See `skills/orchestrator/examples/confirm-gate.md` for the output format.**
 
-| Shape | Pattern | Dispatch |
-|-------|---------|----------|
-| Parallel | Tasks A and B don't interact | Both `run_in_background: true` |
-| Sequential | Task B needs A's output | A first (foreground), then B with A's results |
-| Fan-out | Task A produces shared output for B and C | A first, then B + C in parallel |
-
-### 3. Sprinkle methodology skills
-
-For each subtask, check your mental map: does any skill provide relevant methodology? If yes, read that skill and include it in the subagent's prompt.
-
-Example: user says "value NVDA". Orchestrator decomposes:
-- Task 1: Collect financial data → no skill match, delegate directly
-- Task 2: Run DCF calculation → match `lynn-alden-dcf`, include as methodology
-- Task 3: Compare to market → no skill match, delegate directly
-
-### 4. Announce the plan
-
-```
-Plan for: value NVDA
-Source: generic decomposition
-Parallel:
-  - data-collector: gather financial statements and market data
-  - industry-researcher: research competitive landscape
-Sequential (after data-collector):
-  - dcf-analyst: run DCF valuation (using lynn-alden-dcf skill)
-
-OK? (y/n)
-```
+**Routing:** "proceed" -> first ready node. "change chain" -> route to chain-planner. "modify tasks" / "add nodes" -> route to human_input. "abort" -> consolidator.
 
 ---
 
-## Delegation Details
+### Node: `coder`
 
-### Launch pattern
+**Trigger:** `state.nodes.coder.status == "ready"`
 
-Use the `Agent` tool with `subagent_type: "general-purpose"`, `inherit_context: false`.
+**Input:** `state.user_request`, relevant `decomposition.tasks`, `state.iteration_count`, `state.graph_errors`
 
-- **Parallel:** Launch all in one message with `run_in_background: true` on each
-- **Sequential:** Launch one, wait for completion, read output, launch next
+**Behavior:** Execute tasks using referenced skill methodology. Write to `work/graph/output/coder/`.
 
-### Subagent prompt construction
+**Routing:** If ready audit nodes exist -> route by priority (security-reviewer > test-auditor). Else -> consolidator.
 
-Every subagent prompt must include:
+---
+
+### Node: `security-reviewer`
+
+**Trigger:** `state.nodes["security-reviewer"].status == "ready"`
+
+**Input:** relevant tasks, `coder.output_summary`, `state.graph_errors`
+
+**Behavior:** Audit for OWASP issues, secrets, auth weaknesses. Write to `work/graph/output/security-review/`. Append errors to `graph_errors`.
+
+**Routing:** If errors found AND `iter < max` -> back to coder (micro-loop). If maxed -> human_input. Else -> consolidator or next audit node.
+
+---
+
+### Node: `test-auditor`
+
+Same structure as security-reviewer. Checks test coverage, edge cases. Identical routing.
+
+---
+
+### Node: `human_input`
+
+**Trigger:** `state.routing.next_node == "human_input"`
+
+**Pauses the graph** for error escalation, plan modification, or chain re-route.
+
+**Behavior:** Present context, wait for response, write to `state.nodes.human_input`.
+
+**Routing:** "continue" -> reset counter, route to coder. "skip"/"abort" -> consolidator. Plan modification -> re-run decomposer -> chain-planner. Chain re-route -> chain-planner.
+
+---
+
+### Node: `consolidator`
+
+**Trigger:** `state.routing.next_node == "consolidator"`
+
+**Input:** `state.nodes`, `state.graph_errors`, `state.iteration_count`, `state.decomposition`
+
+**Behavior:** Read all output from `work/graph/output/*/`. Merge findings, note conflicts and unresolved errors. Set `state.status = "COMPLETE"`.
+
+**Routing:** Terminal. Present results.
+
+---
+
+## 3. Router
+
+The router is `f(state) -> next_node`. Called after every node completes.
+
+```
+function get_next_node(state):
+    if state.status in ["COMPLETE", "ERROR"]: return None
+    if state.nodes.human_input.status == "responded": return route_from_human(state)
+    if state.routing.next_node: return state.routing.next_node
+    for each name, node in state.nodes:
+        if node.status == "ready": return name
+    return "consolidator"
+```
+
+### Priority
+
+1. `human_input` (highest)
+2. `chain-planner`
+3. `coder`
+4. `security-reviewer`
+5. `test-auditor`
+6. `consolidator` (always last)
+
+### Micro-loop rule
+
+```
+coder -> audit -> errors AND iter < max -> coder (inc iter)
+                -> errors AND iter >= max -> human_input
+                -> no errors -> consolidator
+```
+
+The router increments the counter, not the node.
+
+---
+
+## 4. Node Launch
+
+The orchestrator launches every node as a sub-agent. The model is determined by the chain step.
+
+### Model resolution
+
+```
+function resolve_model(state, node_name):
+    chain = state.chains[state.selected_chain]
+    for each step in chain.steps:
+        if step.type == "node" AND step.name == node_name: return step.model
+        if step.type == "skill" AND step.name == <skill whose graph contains this node>: return step.model
+    return "default"
+```
+
+### Launch procedure
+
+1. Read relevant state slice (only fields the node needs)
+2. Resolve model via `resolve_model(state, node_name)`
+3. Construct prompt with: role, input data, skill references, output path
+4. Launch sub-agent with `inherit_context: false` and the resolved model
+5. Read output, write to state, call router
+
+### Agent steps vs skill steps
+
+When `type: "agent"`:
+- Read `agents/<name>.md`, use its full content as the sub-agent prompt
+- Use the agent's `model` from frontmatter
+- Use the agent's `tools` to determine subagent_type:
+
+```
+function resolve_subagent_type(tools):
+    if not tools or tools is empty: return "general-purpose"
+    if contains "WebSearch", "WebFetch", or anything beyond Read/Write/Bash/Grep:
+        return "general-purpose"
+    if tools subset of ["Read", "Write", "Bash", "Grep", "Edit", "LS", "Glob"]:
+        return "Explore"
+    return "general-purpose"
+```
+
+This is the only pi-specific mapping in the system. Agent frontmatter is agnostic.
+
+When `type: "skill"`, use the standard prompt template.
+
+### Prompt template (skill steps)
 
 ```
 You are [ROLE]
 
-Task: [what to do — specific, concrete]
+Task: [specific task]
 
-Skills available (read before starting):
-- skills/<name>/SKILL.md — what it's for
+Input data:
+[only the fields this node needs — never the full state]
 
-Tools available: Read, Write, Edit, Bash, Grep, WebSearch
+Skills available:
+- skills/<name>/SKILL.md — read before starting
+
+Tools: Read, Write, Edit, Bash, Grep
 
 Steps:
 1. ...
-2. ...
-3. Write output to [path]
-4. Return summary
+2. Write output to [path]
+3. Return one-line summary
 
 Constraints:
-- Do NOT ...
+- No conversation history from other agents
+- Write output to path, return summary
 ```
-
-### What NOT to include
-
-- Your conversation history (`inherit_context: false`)
-- Irrelevant skill files — only the ones the subagent actually needs
-- Raw user request if it has extraneous content — extract and reframe
 
 ---
 
-## Consolidation
-
-### When subagents finish
-
-1. **Read outputs** — check files they wrote, note return messages
-2. **Check conflicts** — did two agents edit the same file?
-3. **Merge findings** — produce a single summary ordered by priority
-4. **Present to user** — what was done, where outputs live, follow-up needed
-
-### Conflict resolution
+## 5. Error Handling
 
 | Situation | Action |
 |-----------|--------|
-| Different files touched | Merge directly |
-| Same file, different regions | Merge directly |
-| Same file, same region | Apply higher-priority agent's change, note the conflict |
-| Can't resolve | Present both versions to user |
+| Sub-agent fails/times out | Re-launch once. Fail twice -> `ERROR`, route to `human_input`. |
+| Node writes malformed output | Log to `graph_errors`, re-launch. |
+| Node goes off-task | `steer_subagent` to redirect. Fails -> kill and re-launch. |
+| State file missing | Re-initialize. Warn user. |
+| Circular routing (same node 3x) | Force route to `human_input`. |
+| No valid next node | Set `ERROR`, route to `human_input`. |
+
+Recovery: write to `work/graph/errors.log`, set `status = "ERROR"`, route to `human_input`. User can reset, skip, or abort.
 
 ---
 
-## Error Handling
+## 6. Output Structure
 
-| Situation | Response |
-|-----------|----------|
-| Subagent fails/times out | Re-launch with narrower prompt. Fail twice → report to user. |
-| No skill matches a subtask | Delegate without skills. Subagent works generically. |
-| User request ambiguous | Ask clarifying questions before decomposing. |
-| Subagent goes off-task | `steer_subagent` to redirect. Fails → kill and re-launch. |
-| Delegation skill has bad format | Fall back to generic decomposition, flag the issue. |
+```
+work/graph/
+├── state.json              # Shared state
+├── errors.log              # Graph-level errors
+├── output/
+│   ├── coder/
+│   ├── security-review/
+│   ├── test-audit/
+│   └── consolidator/
+```
 
 ---
 
-## Compliance Rules
+## 7. Adding a New Built-in Node
 
-1. **Never execute work directly.** Every task goes to a subagent.
-2. **Always discover before delegating.** Scan skills on every invocation.
-3. **Always announce before dispatching.** Let the user confirm or correct.
-4. **Always use `inherit_context: false`.** Subagents get clean context.
-5. **Read the output, don't assume.** Verify what subagents actually produced.
+To add a new node (e.g., `performance-auditor`):
+1. Add its entry to the `nodes` object in `schema.json`
+2. Define it in section 2: trigger, input, behavior, output fields, routing
+3. Add it to the router's priority list
+4. Add edges in the routing rules

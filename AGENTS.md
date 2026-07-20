@@ -4,7 +4,7 @@
 
 A multi-agent orchestration system for **pi** (the coding agent harness). It packages domain expertise into reusable **skills** (`skills/`) and agent definitions (flat `.md` files at repo root) so that when you invoke pi on a task, it has curated methodology, not just LLM priors.
 
-The orchestrator skill (`skills/orchestrator/SKILL.md`) is the primary entry point. It scans available skills, matches them to your request, and delegates to sub-agents.
+The orchestrator skill (`skills/orchestrator/SKILL.md`) is the primary entry point. It scans available skills, presents chain proposals for you to pick from, routes through a state machine, and delegates to sub-agents.
 
 ## Stack
 
@@ -15,7 +15,7 @@ The orchestrator skill (`skills/orchestrator/SKILL.md`) is the primary entry poi
 | The only executable code | **Bash** scripts in `skills/research/tools/search-*.sh` (curl + python3 for API calls). **Python** templates in `skills/lyn-alden-dcf/SKILL.md` (inline, not saved to files). |
 | Virtual environment | `venv/` (Python 3.12.3, empty — no packages installed). Used only if a sub-agent runs the DCF Python templates. The venv is a convenience, not a requirement. |
 | Dependencies | None. pi provides the agent runtime. Everything else is shell commands and curl. |
-| State files | `work/` — ephemeral consultation artifacts. `.pi/` — pi settings. `.pi-loop.json.lock` — pi loop lock (auto-generated, gitignored). |
+| State files | `work/` — ephemeral graph state (`work/graph/state.json`), consultation artifacts. `.pi/` — pi settings. `.pi-loop.json.lock` — pi loop lock (auto-generated, gitignored). |
 
 ## Structure
 
@@ -26,24 +26,26 @@ fleet-management/
 ├── .pi/settings.json      ← pi config: skills path
 ├── agents/                ← Agent definitions (.md files)
 ├── skills/                ← All skills (SKILL.md files in subdirectories)
-│   ├── orchestrator/      ← Master orchestrator
-│   ├── create-skill/      ← Skill creation workflow
+│   ├── orchestrator/      ← Master orchestrator (graph engine)
+│   ├── create-skill/      ← Skill creation workflow (graph)
 │   ├── research/          ← Multi-source research (with tools/)
-│   ├── review-and-fix/    ← Full pipeline audit+fix
-│   ├── review-my-work/    ← Security/quality audit
-│   ├── fix-my-work/       ← Issue diagnosis and fix
-│   ├── financial-analysis/← Stock valuation
-│   ├── adr/               ← Architecture decision records
+│   ├── financial-analysis/← Multi-methodology stock analysis (graph)
+│   ├── architect/         ← Architectural design, ADR, planning
+│   ├── writing-plans/     ← Implementation plan writing
+│   ├── code-review/       ← Rigorous code review (security, perf, quality)
+│   ├── sre/               ← Security & reliability audit
 │   ├── lyn-alden-dcf/     ← DCF valuation methodology
 │   ├── peter-lynch/       ← GARP stock analysis
 │   ├── nassim-nicholas-taleb/ ← Antifragility critique
 │   ├── better-products-habits/ ← Product habits methodology
 │   ├── stock-info/        ← Stock data fetcher (with tools/)
+│   ├── git-workflow/      ← Git workflow and versioning
 │   ├── setup-testing-workflows/ ← GitHub Actions test workflow
-│   ├── update-readme/     ← README reconciler
-│   └── writing-plans/     ← Implementation plan writing
+│   └── update-readme/     ← README reconciler
 ├── docs/plans/             ← Implementation plans. Read-only reference.
-├── work/                   ← Ephemeral: todo/, response/, done/, recap/.
+├── work/                   ← Ephemeral: graph state, outputs, consultation artifacts.
+│   ├── graph/state.json    ← Shared state machine state
+│   ├── graph/output/       ← Node output files
 │   ├── todo/               ← Consultation requests (primary → consultant)
 │   ├── response/<primary>/ ← Consultation responses (consultant → primary)
 │   ├── done/               ← Completion signals
@@ -56,33 +58,28 @@ fleet-management/
 ### The orchestrator is the gate
 
 Every task goes through `/skill:orchestrator <task>`. The orchestrator:
-1. Scans `skills/` for `SKILL.md` files (reads frontmatter `name` + `description`)
-2. Matches the request to a skill — if the skill has a `## Delegation` section, the orchestrator follows it as a multi-phase workflow
-3. If no match: decomposes the request generically, checks each subtask against available skills for methodology references
-4. **Announces the plan before dispatching** — waits for the user to confirm
-5. Never executes work directly — every task goes to a sub-agent
+1. Scans `skills/` for `SKILL.md` files (reads frontmatter `name`, `description`, graph nodes, `produces` outputs)
+2. Builds a skill index and matches the request to relevant skills
+3. Runs the chain-planner node — presents you with chain proposals (Fast/Safe/Thorough/Custom) and you pick one
+4. Runs the confirm gate — shows the execution plan for the selected chain, you approve
+5. Routes through the state machine: launches sub-agents per node, waits for completions, consolidates
+6. Never executes work directly — every task goes to a sub-agent
 
-### Skill types: delegation vs methodology
+### The shared state (`work/graph/`)
 
-| Type | Has `## Delegation`? | What the orchestrator does |
-|------|---------------------|----------------------------|
-| **Delegation** | Yes | Reads the phases/agents/outputs spec. Launches sub-agents per phase, waits for completions, consolidates. |
-| **Methodology** | No | Reads the content as reference material. Passes it to a sub-agent as instructions. The orchestrator handles the sub-agent launch. |
-
-### The `work/` contract
-
-The `work/` directory is the shared state bus between agents. It lives at the project root.
-
-| Path | Writer | Reader | When |
-|------|--------|--------|------|
-| `work/todo/<agent>.md` | Primary agent | Orchestrator routes to consultant | After primary decides it needs consultation |
-| `work/response/<primary>/<agent>.md` | Consultant | Primary agent | After consultant finishes its task |
-| `work/response/<primary>/round.txt` | Consultant | Primary agent | Per-consultant round tracking |
-| `work/done/<primary>.md` | Primary agent | Orchestrator | Signals completion of the primary's task |
-| `work/escalation.md` | Primary agent | Orchestrator | Signals unresolvable issue after 3 rounds |
-| `work/recap.md` | Any agent | Orchestrator | Notes gaps (agent needed but doesn't exist) |
+The orchestrator uses a state machine at `work/graph/state.json`. All nodes read from and write to this shared state. The orchestrator is a router, not a puppeteer — it moves state between nodes.
 
 `work/` is ephemeral. It is gitignored. It can be deleted between runs.
+
+### Direct skill invocation
+
+You can also invoke a skill directly without the orchestrator:
+
+```
+/skill:<skill-name> <task>
+```
+
+Skills are auto-discovered by pi. The orchestrator skill is not required — you can invoke any skill directly.
 
 ### Direct agent invocation
 
@@ -116,19 +113,11 @@ Skills are auto-discovered by pi. The orchestrator skill is not required — you
 
 ### Known issues
 
-1. **`lyn-alden-dcf` vs `lynn-alden-dcf`** — The skill directory is `skills/lyn-alden-dcf/` (one 'n'). The financial-analyst brain.md references `lynn-alden-dcf` (two 'n's). The README also uses two 'n's. These references are wrong — they will fail to resolve. **Fix:** rename the directory or correct the references. Until this is fixed, the financial-analyst agent cannot find its skill.
+1. **`lyn-alden-dcf` vs `lynn-alden-dcf`** — The skill directory is `skills/lyn-alden-dcf/` (one 'n'). The financial-analyst brain.md references `lynn-alden-dcf` (two 'n's). The README also uses two 'n's. These references are wrong — they will fail to resolve. **Fix:** rename the directory or correct the references.
 
-2. **`review-and-fix` and `review-my-work` are redundant** — Both are delegation skills that audit security, tests, and DevOps. `review-and-fix` adds Plan + Implement phases. `review-my-work` stops at audit. One of these should be removed or merged. Both are currently gitignored (work-in-progress).
+2. **`_old/` directory** — Contains archived skills (`feature-implementation`, `execute`, plus older ones). They are gitignored. They are not loaded by pi. They exist only as reference.
 
-3. **`financial-analysis` and `fix-my-work` have the same description** — Both say "Diagnose and fix issues in the repository." `financial-analysis` should be about stock valuation. Copy-paste bug. This skill is also gitignored.
-
-4. **`reviewer/brain.md` has no YAML frontmatter** — Unlike every other agent brain. It also references `work/result/` which doesn't exist — the convention is `work/response/` and `work/todo/`.
-
-5. **`docs/plans/2026-07-11-research-backed-skill-creation.md` is stale** — It describes converting `create-skill` from methodology to delegation. The file on disk is already a delegation skill. The plan is historical.
-
-6. **`_old/` directory** — Contains 4 skills replaced by the current `skills/` structure. They are gitignored. They are not loaded by pi. They exist only as reference if someone wants to understand the migration. Do not use them.
-
-7. **No Python files committed** — The `financial-analyst` brain says to run Python scripts for DCF calculations, but there are no `.py` files, no `requirements.txt`, no `pyproject.toml`. The agent is expected to write `dcf_valuation.py` at runtime. This is intentional (the scripts are ephemeral), but it means the agent must have `yfinance` available. The `get_stock_info` tool provides yfinance stock data; the agent does not need to install it.
+3. **No Python files committed** — The `financial-analyst` brain says to run Python scripts for DCF calculations, but there are no `.py` files, no `requirements.txt`, no `pyproject.toml`. The agent is expected to write `dcf_valuation.py` at runtime. This is intentional (the scripts are ephemeral), but it means the agent must have `yfinance` available. The `get_stock_info` tool provides yfinance stock data; the agent does not need to install it.
 
 ---
 
@@ -238,11 +227,11 @@ A task is done when **all** of the following are true:
    ---
    ```
 
-5. **Delegation skill structure:** A `## Delegation` section with numbered phases, agents per phase, and `Role`, `Skills`, `Output` fields per agent. Agents within a phase always run in parallel. Phases are sequential. See `skills/create-skill/SKILL.md` for the canonical example.
+5. **Graph skill structure:** A `## Graph` section with nodes (name, trigger, input, role, skills, output, route). See `skills/orchestrator/SKILL.md` section 2 for the canonical format. Each node also has a `produces` field listing what output types it generates, used for skill chaining.
 
-6. **Methodology skill structure:** Starts with `## Overview`, then step-by-step instructions. No `## Delegation` section. The orchestrator passes the content as instructions to a single sub-agent.
+6. **Methodology skill structure:** Starts with `## Overview`, then step-by-step instructions. No `## Graph` section. The orchestrator passes the content as instructions to a single sub-agent.
 
-7. **Output paths always use `work/`.** Delegation phases write to `work/<topic>/<file>.md`. Consultation uses `work/todo/`, `work/response/`, `work/done/`. Never write output to `work/result/` — that path does not exist.
+7. **Output paths always use `work/graph/`.** Node outputs go to `work/graph/output/<node-name>/`. The shared state is `work/graph/state.json`.
 
 8. **Sub-agents get `inherit_context: false`.** Always start fresh. The orchestrator constructs the prompt from the skill content, role description, and task.
 

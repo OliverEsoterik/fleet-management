@@ -5,6 +5,8 @@ description: >
   ArgoCD and Flux configurations against known failure modes, security
   hardening checklists, and operational maturity models. Produces structured
   audit reports with actionable findings organized by severity.
+skills: [sre, code-review]
+model: haiku
 tools: Read, Write, Bash, Grep, WebSearch
 ---
 

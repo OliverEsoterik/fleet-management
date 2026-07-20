@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "workflow_id": "<uuid>",
+  "created_at": "<ISO-8601>",
+  "updated_at": "<ISO-8601>",
+
+  "status": "START",
+  "phase": "",
+  "iteration_count": 0,
+  "max_iterations": 5,
+  "graph_errors": [],
+
+  "user_request": "<original request text>",
+  "decomposition": {
+    "tasks": [],
+    "source": "skill-match | generic"
+  },
+
+  "chains": [],
+  "selected_chain": -1,
+
+  "nodes": {
+    "coder": { "status": "pending", "output_summary": "" },
+    "security-reviewer": { "status": "pending", "output_summary": "" },
+    "test-auditor": { "status": "pending", "output_summary": "" },
+    "chain-planner": { "status": "pending", "output_summary": "" },
+    "human_input": { "status": "pending", "prompt": "", "response": "" }
+  },
+
+  "routing": {
+    "last_node": "",
+    "next_node": "",
+    "reason": ""
+  }
+}
