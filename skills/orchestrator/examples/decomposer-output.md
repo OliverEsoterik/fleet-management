@@ -1,6 +1,7 @@
 # Decomposer Output Example
 
-When the decomposer finishes, it writes the following to `work/graph/state.json`. This is the input the chain-planner reads.
+When the decomposer finishes, it writes the following to `work/graph/state.json`.
+This is the input the chain-planner reads.
 
 ## Fields written
 
@@ -15,8 +16,8 @@ When the decomposer finishes, it writes the following to `work/graph/state.json`
 {
   "decomposition": {
     "tasks": [
-      { "id": "task-1", "description": "analyze codebase", "node": "coder", "skills": ["architect"] },
-      { "id": "task-2", "description": "research state of the art", "node": "coder", "skills": ["research"] }
+      { "id": "task-1", "description": "analyze codebase", "skills": ["architect"] },
+      { "id": "task-2", "description": "research state of the art", "skills": ["research"] }
     ],
     "source": "skill-match"
   },
@@ -30,17 +31,20 @@ When the decomposer finishes, it writes the following to `work/graph/state.json`
     },
     {
       "name": "code-review",
-      "description": "Rigorous code review...",
+      "description": "Systematic code review methodology...",
       "type": "methodology",
       "nodes": [],
       "produces": ["review-report"]
     },
     {
-      "name": "sre",
-      "description": "Security audit...",
-      "type": "methodology",
-      "nodes": [],
-      "produces": ["audit-report"]
+      "name": "research",
+      "description": "Multi-source research skill...",
+      "type": "graph",
+      "nodes": ["source-validator", "query-refiner", "arxiv-researcher",
+                "github-researcher", "pubmed-researcher", "archive-researcher",
+                "web-researcher", "synthesis-writer", "report-writer",
+                "cleanup"],
+      "produces": ["research-report"]
     }
   ],
   "agent_index": [

@@ -1,8 +1,9 @@
 # Confirm Gate Example
 
-The confirm gate shows the execution plan for the selected chain. The user approves, modifies, or aborts before any work starts.
+The confirm gate shows the execution plan for the selected chain. The user
+approves, modifies, or aborts before any work starts.
 
-## Example: Fast chain
+## Example: Fast chain (methodology skill)
 
 ```
 [GRAPH ENGINE — PLAN CONFIRMATION]
@@ -14,7 +15,43 @@ Chain steps:
   2. consolidator [default] — wrap up
 
 Nodes to execute:
-  - coder: implement feature X [skills: feature-implementation]
+  - 1-feature-implementation: implement feature X [methodology skill]
+  - consolidator: merge results
+
+Options:
+1) Proceed
+2) Change chain
+3) Modify tasks
+4) Add nodes
+5) Abort
+```
+
+## Example: Safe chain with graph skill
+
+```
+[GRAPH ENGINE — PLAN CONFIRMATION]
+Request: research quantum computing
+
+Selected chain: Safe
+Chain steps:
+  1. research [haiku] — work (graph skill, 10 nodes)
+  2. code-review [haiku] — review (methodology skill)
+  3. fix [sonnet] — fix issues
+  4. consolidator [default] — wrap up
+
+Nodes to execute:
+  - 1-research.source-validator: validate sources
+  - 1-research.query-refiner: refine queries
+  - 1-research.arxiv-researcher: search arxiv
+  - 1-research.github-researcher: search github
+  - 1-research.pubmed-researcher: search pubmed
+  - 1-research.archive-researcher: search archive
+  - 1-research.web-researcher: search web
+  - 1-research.synthesis-writer: synthesize findings
+  - 1-research.report-writer: write report
+  - 1-research.cleanup: clean up artifacts
+  - 2-code-review: review research report
+  - 3-fix: fix review issues
   - consolidator: merge results
 
 Options:
@@ -38,7 +75,7 @@ Chain steps:
   2. consolidator [default] — wrap up
 
 Nodes to execute:
-  - coder: run gitops-expert agent [haiku]
+  - 1-gitops-expert: run gitops-expert agent [haiku]
   - consolidator: merge results
 
 Options:

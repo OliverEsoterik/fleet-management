@@ -1,14 +1,31 @@
 # Skill & Agent Dependency Graph
 
-The orchestrator (`skills/orchestrator/`) is a **graph engine** that chains skills and agents together based on your request. When you invoke it, it:
+The orchestrator (`skills/orchestrator/`) is a **generic graph engine** that
+chains skills and agents together based on your request. No hardcoded node
+types — every execution node is registered dynamically from chain steps or
+skill graphs. When you invoke it, it:
 
-1. **Scans** all skills and agents, builds `skill_index` and `agent_index` with `produces` metadata
-2. **Chain-planner** reads your request and builds a chain of steps. Each step is a skill or agent dispatch. If you describe a chain ("first research X, then architect a solution"), it builds those steps literally. If your request is generic, it shows a menu of standard chains (Fast/Safe/Thorough).
-3. **Model assignment** — each step gets a model. Agent steps use the agent's frontmatter model. Skill steps use defaults (sonnet for architect, haiku for review, default for code).
-4. **Confirm gate** shows you the full chain with model assignments. You approve, modify, or abort.
-5. **Router** launches each step in sequence, enforcing model assignments per step. The first step could be `architect`, `research`, `gitops-expert`, or any skill or agent — it depends on your chain.
+1. **Scans** all skills and agents, builds `skill_index` and `agent_index`
+   with `produces` metadata
+2. **Chain-planner** reads your request and builds a chain of steps. Each
+   step is a skill or agent dispatch. If you describe a chain ("first research
+   X, then architect a solution"), it builds those steps literally. If your
+   request is generic, it shows a menu of standard chains (Fast/Safe/Thorough)
+   using step roles (work, review, plan, fix) resolved to actual skills.
+3. **Model assignment** — each step gets a model. Agent steps use the agent's
+   frontmatter model. Skill steps use defaults (sonnet for plan, haiku for
+   review/analysis, default for code).
+4. **Confirm gate** shows you the full chain with model assignments. You
+   approve, modify, or abort.
+5. **Dynamic node registration** — the confirm node registers nodes based on
+   each step's type. Methodology skills get one node. Graph skills register
+   all their internal nodes (prefixed with step index). Agents get one node.
+6. **Router** scans all registered nodes for "ready" status and launches them.
+   Graph-internal routing happens automatically. Chain steps progress as
+   nodes complete.
 
-**Example:** Say "research transformer architectures, then architect a solution, then review the plan." The chain-planner builds:
+**Example:** Say "research transformer architectures, then architect a
+solution, then review the plan." The chain-planner builds:
 
 ```
 research [haiku] → architect [sonnet] → code-review [haiku] → consolidator
@@ -16,7 +33,10 @@ research [haiku] → architect [sonnet] → code-review [haiku] → consolidator
 
 Three separate dispatches, each with its own model. No collapsing, no dedup.
 
-Skills are **methodology** (step-by-step instructions), **graph** (node-based workflow with triggers + routes), or **data provider** (bash scripts). Agents wrap skills with preferred models and domain expertise — the orchestrator prefers agents over raw skills when a match is found.
+Skills are **methodology** (step-by-step instructions), **graph** (node-based
+workflow with triggers + routes), or **data provider** (bash scripts). Agents
+wrap skills with preferred models and domain expertise — the orchestrator
+prefers agents over raw skills when a match is found.
 
 ---
 
@@ -30,30 +50,43 @@ flowchart LR
 
   user["user request"]
   decomposer["decomposer<br/>—— scans skills + agents,<br/>builds both indices"]
-  chainPlanner["chain-planner<br/>—— builds chain from description<br/>or shows menu,<br/>assigns models per step,<br/>prefers agents over skills"]
-  confirm["confirm gate<br/>—— you approve the plan<br/>with model assignments"]
-  chain["selected chain steps<br/>—— depends on user's choice<br/>(architect, research, code-review,<br/>gitops-expert, coder, ...)"]
-  audit["audit nodes<br/>security-reviewer, test-auditor"]
+  chainPlanner["chain-planner<br/>—— builds chain from description<br/>or shows menu with roles,<br/>assigns models per step,<br/>prefers agents over skills"]
+  confirm["confirm gate<br/>—— registers all nodes<br/>dynamically from chain steps,<br/>you approve the plan"]
+  execNodes["dynamic nodes<br/>—— registered per step:<br/>• methodology skill: 1 node<br/>• graph skill: N nodes<br/>• agent: 1 node<br/>• fix/plan: 1 node"]
+  graphInternal["graph-internal routing<br/>—— next node in graph,<br/>sink -> next chain step"]
+  microLoop["chain-driven micro-loop<br/>—— work -> review -> fix -> re-review<br/>up to max_iterations"]
   human["human_input<br/>—— pauses, asks you"]
   consolidator["consolidator"]
 
   user --> decomposer
   decomposer --> chainPlanner
   chainPlanner --> confirm
-  confirm --> chain
-  chain -->|errors found| audit
-  chain -->|no audit needed| consolidator
-  audit -->|errors AND iter < 5| chain
-  audit -->|errors AND iter >= 5| human
-  audit -->|no errors| consolidator
-  human -->|continue| chain
+  confirm -->|register nodes| execNodes
+  execNodes --> graphInternal
+  graphInternal -->|sink reached| nextChainStep["next chain step"]
+  nextChainStep -->|all steps done| consolidator
+  execNodes -->|review finds issues| microLoop
+  microLoop -->|fix step| execNodes
+  microLoop -->|maxed out| human
+  microLoop -->|no issues| consolidator
+  human -->|continue| execNodes
   human -->|skip/abort| consolidator
 
-  class decomposer,chainPlanner,chain,audit,consolidator node
-  class confirm,human gate
+  class decomposer,chainPlanner,confirm,consolidator node
+  class execNodes,graphInternal,nextChainStep,microLoop node
+  class human gate
 ```
 
-The chain-planner checks your request for sequential language ("first... then...") and if found, builds a chain from those steps literally, matching against `agent_index` first then `skill_index`. If no chain language is detected, it shows a menu of standard chains (Fast, Safe, Thorough). Models are assigned per step — if an agent matches, the agent's frontmatter `model` is used.
+The chain-planner checks your request for sequential language ("first...
+then...") and if found, builds a chain from those steps literally, matching
+against `agent_index` first then `skill_index`. If no chain language is
+detected, it shows a menu of standard chains (Fast, Safe, Thorough) using
+step roles. Models are assigned per step — if an agent matches, the agent's
+frontmatter `model` is used.
+
+**No hardcoded node types.** coder, security-reviewer, test-auditor do not
+exist. Every execution node is dynamically registered from chain steps or
+skill graphs. The router follows whatever nodes are registered.
 
 ---
 
@@ -61,7 +94,8 @@ The chain-planner checks your request for sequential language ("first... then...
 
 **`produces:`** `[analysis, adr, plan]`
 
-Launched as a single sub-agent with its SKILL.md as instructions. Runs 7 phases internally, delegating to sub-sub-agents for research and plan writing:
+Launched as a single sub-agent with its SKILL.md as instructions. Runs 7
+phases internally, delegating to sub-sub-agents for research and plan writing:
 
 ```mermaid
 flowchart LR
@@ -81,12 +115,14 @@ flowchart LR
   class architect,research,writingPlans subagent
 ```
 
-**Phase 1** — Deep understanding: explores codebase, writes `work/architect/analysis.md`  
-**Phase 2** — Delegates to `research` skill, reads `work/research/report/report.md`  
-**Phase 3** — Presents options to user (decision gate)  
-**Phase 4** — Writes ADR to `docs/decisions/ADR-NNN-*.md`  
-**Phase 5** — Presents ADR to user (approval gate)  
-**Phase 6** — Delegates to `writing-plans` skill, reads plan file  
+**Phase 1** — Deep understanding: explores codebase, writes
+`work/architect/analysis.md`
+**Phase 2** — Delegates to `research` skill, reads
+`work/research/report/report.md`
+**Phase 3** — Presents options to user (decision gate)
+**Phase 4** — Writes ADR to `docs/decisions/ADR-NNN-*.md`
+**Phase 5** — Presents ADR to user (approval gate)
+**Phase 6** — Delegates to `writing-plans` skill, reads plan file
 **Phase 7** — Presents plan, asks for execution approval
 
 ---
@@ -95,7 +131,9 @@ flowchart LR
 
 **`produces:`** `[research-report]`
 
-Multi-source parallel research. Sources specified by the user (arxiv, github, pubmed, archive, web). Each source gets a dedicated tool script in `skills/research/tools/`.
+Multi-source parallel research. Sources specified by the user (arxiv, github,
+pubmed, archive, web). Each source gets a dedicated tool script in
+`skills/research/tools/`.
 
 ```mermaid
 flowchart LR
@@ -117,7 +155,8 @@ flowchart LR
   class research,arxiv,github,web subagent
 ```
 
-Phases: query refinement → parallel search (one per source) → synthesis → report.
+Phases: query refinement → parallel search (one per source) → synthesis →
+report.
 
 ---
 
@@ -125,14 +164,18 @@ Phases: query refinement → parallel search (one per source) → synthesis → 
 
 **`produces:`** `[skill-file]`
 
-Graph skill with two modes: **full** (research → synthesis → plan → write) and **lightweight** (plan → write, skip research). The decomposer inside the skill decides which mode based on the request.
+Graph skill with two modes: **full** (research → synthesis → plan → write)
+and **lightweight** (plan → write, skip research). The decomposer inside the
+skill decides which mode based on the request. When the orchestrator's chain
+references this skill, all its internal nodes are registered dynamically with
+the `create-skill` prefix.
 
 ```mermaid
 flowchart LR
   classDef skill fill:#1a73e8,color:#fff,stroke:#0d47a1,stroke-width:2px
   classDef node fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px
 
-  orchestrator["orchestrator\n(graph engine)"]
+  orchestrator["orchestrator\n(graph engine) registers\ncreate-skill nodes\ndynamically"]
 
   subgraph researchNodes["Full mode only"]
     academic["academic-researcher"]
@@ -147,7 +190,7 @@ flowchart LR
   skillWriter["skill-writer"]
   cleanup["cleanup"]
 
-  orchestrator -->|registers nodes| researchNodes
+  orchestrator -->|registers nodes with<br/>prefix 'N-create-skill.'| researchNodes
   researchNodes --> researchGate
   researchGate --> synthesisWriter
   synthesisWriter --> skillPlanner
@@ -158,7 +201,8 @@ flowchart LR
   class academic,web,github,historical,researchGate,synthesisWriter,skillPlanner,skillWriter,cleanup node
 ```
 
-In lightweight mode, the decomposer skips the research nodes and sets `skill-planner` to `"ready"` directly.
+In lightweight mode, the decomposer skips the research nodes and sets
+`skill-planner` to `"ready"` directly.
 
 ---
 
@@ -166,14 +210,16 @@ In lightweight mode, the decomposer skips the research nodes and sets `skill-pla
 
 **`produces:`** `[financial-data, dcf-valuation, garp-analysis, antifragility-critique, recommendation]`
 
-Domain-specific pipeline with fixed parallelism. Three methodologies run in parallel on the same stock data.
+Domain-specific pipeline with fixed parallelism. Three methodologies run in
+parallel on the same stock data. When the orchestrator's chain references
+this skill, all its internal nodes are registered dynamically.
 
 ```mermaid
 flowchart LR
   classDef skill fill:#1a73e8,color:#fff,stroke:#0d47a1,stroke-width:2px
   classDef node fill:#e65100,color:#fff,stroke:#bf360c,stroke-width:2px
 
-  orchestrator["orchestrator\n(graph engine)"]
+  orchestrator["orchestrator\n(graph engine) registers\nfinancial-analysis nodes\ndynamically"]
 
   stockResearcher["stock-researcher\n—— stock-info skill"]
   dcf["dcf-analyst\n—— lyn-alden-dcf skill"]
@@ -193,7 +239,8 @@ flowchart LR
   class stockResearcher,dcf,peter,taleb,synthesis node
 ```
 
-**Data flow:** `stock-researcher` fetches data → three parallel analysts read that data → `synthesis-analyst` consolidates all three into a recommendation.
+**Data flow:** `stock-researcher` fetches data → three parallel analysts read
+that data → `synthesis-analyst` consolidates all three into a recommendation.
 
 ---
 
@@ -201,7 +248,12 @@ flowchart LR
 
 **`produces:`** `[review-report]`
 
-Rigorous code review framework with four lenses: devil's advocate (why will this fail?), security, performance, maintainability. Outputs findings with severity ratings and file/line references.
+Evidence-based code review with 4 passes: structural understanding (no
+comments), logic & correctness, security/performance/robustness, and style/
+maintainability. Reviews under 400 lines catch 70-90% of defects — above
+that, detection drops to 35%. The skill flags oversized diffs automatically.
+Outputs findings with severity ratings (Critical/High/Medium/Low/Praise)
+and file/line references.
 
 ---
 
@@ -209,7 +261,10 @@ Rigorous code review framework with four lenses: devil's advocate (why will this
 
 **`produces:`** `[audit-report]`
 
-Full security & reliability audit pipeline. Four phases run sequentially: security audit → reliability audit → performance audit → architecture anti-pattern detection. Each phase uses the `code-review` skill as reference methodology.
+Full security & reliability audit pipeline. Four phases run sequentially:
+security audit → reliability audit → performance audit → architecture
+anti-pattern detection. Each phase uses the `code-review` skill as reference
+methodology.
 
 ---
 
@@ -217,7 +272,9 @@ Full security & reliability audit pipeline. Four phases run sequentially: securi
 
 **`wraps:`** `[sre, code-review]` | **`model:`** `haiku`
 
-Dedicated agent for auditing GitOps setups (ArgoCD, Flux). The orchestrator's chain-planner prefers this agent over raw `sre` or `code-review` skills when the request mentions GitOps, Kubernetes, or Git-driven deployments.
+Dedicated agent for auditing GitOps setups (ArgoCD, Flux). The orchestrator's
+chain-planner prefers this agent over raw `sre` or `code-review` skills when
+the request mentions GitOps, Kubernetes, or Git-driven deployments.
 
 ```mermaid
 flowchart LR
@@ -238,13 +295,18 @@ flowchart LR
   class sre,codeReview skill
 ```
 
-The agent's full definition is in `agents/gitops-expert.md`. When the orchestrator selects it, it reads the `.md` file, uses its content as the sub-agent prompt, and launches with `model: haiku`. The orchestrator maps the agent's `tools` field to the appropriate subagent type at launch.
+The agent's full definition is in `agents/gitops-expert.md`. When the
+orchestrator selects it, it reads the `.md` file, uses its content as the
+sub-agent prompt, and launches with `model: haiku`. The orchestrator maps
+the agent's `tools` field to the appropriate subagent type at launch.
 
 ---
 
 ## Methodology skills (no graph)
 
-These are single-sub-agent skills. The orchestrator launches one agent with their SKILL.md as instructions. They are referenced by other skills as dependencies:
+These are single-sub-agent skills. The orchestrator launches one agent with
+their SKILL.md as instructions. They are referenced by other skills as
+dependencies:
 
 | Skill | `produces` | Referenced by |
 |-------|-----------|---------------|
@@ -257,7 +319,11 @@ These are single-sub-agent skills. The orchestrator launches one agent with thei
 | `sre` | `[audit-report]` | gitops-expert |
 | `git-workflow-and-versioning` | `[branching-guidance]` | (convention utility) |
 | `better-products-habits` | `[product-framework]` | (standalone) |
+| `academic-writer` | `[academic-paper]` | (standalone) |
+| `design-doc` | `[design-document]` | (standalone) |
+| `latex-document` | `[latex-source]` | (standalone) |
 | `setup-testing-workflows` | `[github-actions-workflow]` | (standalone) |
+| `strategy-advisor` | `[strategy-review]` | (standalone) |
 | `update-readme` | `[updated-readme]` | (standalone) |
 
 ---
@@ -268,31 +334,45 @@ These are single-sub-agent skills. The orchestrator launches one agent with thei
 |-------|-------------|-------|---------|
 | `gitops-expert` | sre, code-review | haiku | GitOps audit (ArgoCD/Flux) |
 
-The orchestrator's chain-planner checks `agent_index` before `skill_index`. When a step matches an agent, the step uses the agent's model and launches with the agent's full definition as the prompt.
+The orchestrator's chain-planner checks `agent_index` before `skill_index`.
+When a step matches an agent, the step uses the agent's model and launches
+with the agent's full definition as the prompt.
 
 ---
 
 ## Model routing
 
-The orchestrator enforces model assignments per step. When launching a sub-agent:
+The orchestrator enforces model assignments per step. When launching a
+sub-agent:
 
 1. If the step is `type: "agent"` → use the agent's `model` from frontmatter
-2. If the step is `type: "skill"` → use the chain-planner's assigned model (sonnet for architect, haiku for review, default for code)
+2. If the step is `type: "skill"` → use the chain-planner's assigned model
+   (sonnet for plan, haiku for review/analysis, default for code)
 3. If no model is specified → use the orchestrator's own default
 
-This means a single chain can use different models for different steps: `architect [sonnet] → research [haiku] → coder [default]`.
+This means a single chain can use different models for different steps:
+`architect [sonnet] → research [haiku] → work [default]`.
 
 ---
 
 ## Chain composition
 
-The chain-planner builds chains from the `skill_index` and `agent_index`. Example chains:
+The chain-planner builds chains from the `skill_index` and `agent_index`.
+Example chains:
 
-**Fast:** matched skill or agent → consolidator  
-**Safe:** matched skill → code-review → fix issues → consolidator  
-**Thorough:** architect → matched skill → sre → code-review → fix issues → consolidator  
+**Fast:** work → consolidator
+**Safe:** work → review → fix → consolidator
+**Thorough:** plan → work → review → fix → consolidator
 
-If none of these fit, describe your own chain in the request ("first X then Y").
-The chain-planner detects it and builds it directly.
+Step roles (work, review, plan, fix) are resolved to actual skills at build
+time. If a role cannot be resolved (e.g., no review skill found), that step
+is dropped with a note.
 
-The chain-planner takes descriptions literally. If you say "research then architect then code-review", it builds exactly those three steps as separate skill dispatches — no collapsing, no dedup. It warns about potential overlaps but does not reorder or merge. If an agent matches a step (e.g., "audit our GitOps" matches `gitops-expert`), the agent is used instead of the raw skill.
+If none of these fit, describe your own chain in the request ("first X then
+Y"). The chain-planner detects it and builds it directly.
+
+The chain-planner takes descriptions literally. If you say "research then
+architect then code-review", it builds exactly those three steps as separate
+skill dispatches — no collapsing, no dedup. It warns about potential overlaps
+but does not reorder or merge. If an agent matches a step (e.g., "audit our
+GitOps" matches `gitops-expert`), the agent is used instead of the raw skill.
