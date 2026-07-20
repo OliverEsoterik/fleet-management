@@ -18,14 +18,23 @@ and routes through the appropriate chain.
 /skill:orchestrator <task description>
 ```
 
-The orchestrator:
-1. Scans all skills and agents, builds indices with `produces` metadata
-2. Runs the **chain-planner** — detects if you described a chain ("first X then Y") and builds it directly, or shows a menu of Fast/Safe/Thorough options
-3. Shows you the chain with model assignments per step and asks for confirmation
-4. Routes through the chain, launching sub-agents with their configured models
-5. Handles micro-loops (coder -> audit -> coder) and human escalation
+The orchestrator chains skills and agents together based on your request. Each step in the chain is a separate dispatch with its own model.
 
-The chain-planner takes your description literally. Say "research X, then architect a solution" and it will launch the `research` skill first, then `architect` — no collapsing, no dedup.
+**Describe your own chain:** Say "research transformer architectures, then architect a solution, then review the plan." The chain-planner builds:
+```
+research [haiku] → architect [sonnet] → code-review [haiku] → consolidator
+```
+Three separate dispatches, each with a different model. No collapsing, no dedup.
+
+**Or use a standard chain:** Say "implement feature X" and pick Fast (direct), Safe (implement + review), or Thorough (plan + implement + audit + review).
+
+**The full flow:**
+1. Scans all skills and agents
+2. Chain-planner builds a chain from your description or shows a menu
+3. Each step gets a model (agent model or default)
+4. Confirm gate shows the chain, you approve
+5. Router launches steps in sequence with their assigned models
+6. Micro-loops handle coder -> audit -> fix cycles when needed
 
 ### Use a skill directly
 
