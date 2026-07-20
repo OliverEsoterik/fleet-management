@@ -41,7 +41,7 @@ the source table below. No other code changes needed.
 
 ---
 
-## Delegation
+## Graph
 
 **The orchestrator reads this section and executes it.**
 
@@ -55,166 +55,208 @@ the source table below. No other code changes needed.
 
 If `--sources` is omitted, default to `arxiv,github,pubmed,web`.
 
----
+### Nodes
 
-### Phase 0 — Validate Sources (sequential)
+  - name: source-validator
+    trigger: nodes.source-validator.status == "ready"
+    input: [user_request]
+    role: >
+      Validate the requested sources against the source table and set up the
+      output directory structure. Parse `--sources` from the user request
+      (comma-separated). Default to `arxiv,github,pubmed,web` if omitted.
 
-Before dispatching, the orchestrator validates the requested sources:
+      For each source: check it exists in the source table above. If an
+      unknown source is specified, warn and skip it.
 
-1. Parse `--sources` from the user request (comma-separated). Default: `arxiv,github,pubmed,web`
-2. For each source: check it exists in the source table above. If an unknown source is specified, warn and skip it.
-3. Create `work/research/` directory structure:
-   ```
-   work/research/
-   ├── sources/     ← individual source outputs
-   └── report/      ← final report
-   ```
-4. **Announce the plan** to the user with a numbered list of sources and estimated phases, then wait for confirmation (y/n).
+      Create `work/research/` directory structure:
+      ```
+      work/research/
+      ├── sources/     ← individual source outputs
+      └── report/      ← final report
+      ```
 
----
+      Announce the plan to the user with a numbered list of sources and
+      estimated phases, then wait for confirmation (y/n). Write the validated
+      source list and confirmation result to the output path.
+    skills: []
+    output: work/research/sources-validated.md
+    route: always -> query-refiner
 
-### Phase 1 — Query Refinement (sequential)
+  - name: query-refiner
+    trigger: route("source-validator")
+    input: [user_request]
+    role: >
+      You are a research query strategist. Your job is to take the user's
+      research topic and produce one refined query per requested source.
+      Different sources optimize for different query styles. Write the result
+      to the output path.
 
-- **Agent: query-refiner**
-  Role: You are a research query strategist. Your job is to take the user's
-  research topic and produce one refined query per requested source. Different
-  sources optimize for different query styles. Write the result to the output
-  path.
+      Rules for query refinement:
+      - **arxiv:** Use simple keywords. arXiv's API searches titles, abstracts,
+        and authors. Example: "transformer attention mechanism" not "What is
+        the attention mechanism in transformers?"
+      - **github:** Use repo-describing keywords. GitHub search works best
+        with project names, topics, and descriptive terms.
+      - **pubmed:** PubMed uses MeSH-aware search. Technical/medical
+        terminology works well. Example: "machine learning genomics" not "how
+        is ML used in genomics"
+      - **archive:** General keywords — Archive.org's search is broad.
+      - **web:** Natural language questions or full sentences work well with
+        WebSearch.
 
-  Rules for query refinement:
-  - **arxiv:** Use simple keywords. arXiv's API searches titles, abstracts, and
-    authors. Example: "transformer attention mechanism" not "What is the
-    attention mechanism in transformers?"
-  - **github:** Use repo-describing keywords. GitHub search works best with
-    project names, topics, and descriptive terms.
-  - **pubmed:** PubMed uses MeSH-aware search. Technical/medical terminology
-    works well. Example: "machine learning genomics" not "how is ML used in
-    genomics"
-  - **archive:** General keywords — Archive.org's search is broad.
-  - **web:** Natural language questions or full sentences work well with
-    WebSearch.
+      Output format (markdown):
+      ```markdown
+      # Refined Queries for: <original query>
 
-  Output format (markdown):
-  ```markdown
-  # Refined Queries for: <original query>
+      ## arxiv
+      <refined query>
 
-  ## arxiv
-  <refined query>
+      ## github
+      <refined query>
 
-  ## github
-  <refined query>
+      ## pubmed
+      <refined query>
+      ```
+    skills: []
+    output: work/research/queries.md
+    route: always -> query-refiner-done  # signals completion; 5 researcher nodes trigger on route("query-refiner")
 
-  ## pubmed
-  <refined query>
-  ```
+  - name: arxiv-researcher
+    trigger: route("query-refiner")
+    input: [user_request]
+    role: >
+      You are an arXiv research specialist. Read `work/research/queries.md`
+      and find the query for the `arxiv` source. Run the search tool and save
+      the results.
 
-  Output: `work/research/queries.md`
+      Tool: `bash skills/research/tools/search-arxiv.sh "<query>" <max_results>`
+      Where `<max_results>` defaults to 10. Pipe stdout to a markdown file.
+    skills: []
+    output: work/research/sources/arxiv.md
+    route: always -> synthesis-writer
 
----
+  - name: github-researcher
+    trigger: route("query-refiner")
+    input: [user_request]
+    role: >
+      You are a GitHub research specialist. Read `work/research/queries.md`
+      and find the query for the `github` source. Run the search tool and
+      save the results.
 
-### Phase 2 — Parallel Source Search (parallel)
+      Tool: `bash skills/research/tools/search-github.sh "<query>" <max_results>`
+      Where `<max_results>` defaults to 10.
+    skills: []
+    output: work/research/sources/github.md
+    route: always -> synthesis-writer
 
-For each requested source, launch a subagent. All subagents run in parallel.
+  - name: pubmed-researcher
+    trigger: route("query-refiner")
+    input: [user_request]
+    role: >
+      You are a PubMed research specialist. Read `work/research/queries.md`
+      and find the query for the `pubmed` source. Run the search tool and
+      save the results.
 
-Each subagent prompt includes:
+      Tool: `bash skills/research/tools/search-pubmed.sh "<query>" <max_results>`
+      Where `<max_results>` defaults to 10.
+    skills: []
+    output: work/research/sources/pubmed.md
+    route: always -> synthesis-writer
 
-1. Read `work/research/queries.md` and find the query for this source
-2. Run the appropriate tool or search command
-3. Save the results to `work/research/sources/<source>.md`
-4. Return a brief summary
+  - name: archive-researcher
+    trigger: route("query-refiner")
+    input: [user_request]
+    role: >
+      You are an Archive.org research specialist. Note: Archive.org is best
+      for historical documents, primary sources, books, and media — not
+      academic papers. Search terms should be broad.
 
----
+      Read `work/research/queries.md` and find the query for the `archive`
+      source. Run the search tool and save the results.
 
-#### Source-specific agent instructions:
+      Tool: `bash skills/research/tools/search-archive.sh "<query>" <max_results>`
+      Where `<max_results>` defaults to 10.
+    skills: []
+    output: work/research/sources/archive.md
+    route: always -> synthesis-writer
 
-**Agent: arxiv-researcher**
-Role: You are an arXiv research specialist.
-Tool: `bash skills/research/tools/search-arxiv.sh "<query>" <max_results>`
-Where `<max_results>` defaults to 10. Pipe stdout to a markdown file.
-Output: `work/research/sources/arxiv.md`
+  - name: web-researcher
+    trigger: route("query-refiner")
+    input: [user_request]
+    role: >
+      You are a web research specialist. Read `work/research/queries.md` and
+      find the query for the `web` source. Since web search is only available
+      via agent-level tools, use the WebSearch tool directly. Search for the
+      refined query, read the most relevant results, and synthesize them.
 
-**Agent: github-researcher**
-Role: You are a GitHub research specialist.
-Tool: `bash skills/research/tools/search-github.sh "<query>" <max_results>`
-Where `<max_results>` defaults to 10.
-Output: `work/research/sources/github.md`
+      Tool: _not a bash script_ — use the built-in `WebSearch` tool in your
+      agent toolkit. You can also use `WebFetch` to read pages.
 
-**Agent: pubmed-researcher**
-Role: You are a PubMed research specialist.
-Tool: `bash skills/research/tools/search-pubmed.sh "<query>" <max_results>`
-Where `<max_results>` defaults to 10.
-Output: `work/research/sources/pubmed.md`
+      Constraints: Do NOT exceed 15 web requests total. Focus on quality over
+      quantity: find the 3-5 best sources and summarize them well.
+    skills: []
+    output: work/research/sources/web.md
+    route: always -> synthesis-writer
 
-**Agent: archive-researcher**
-Role: You are an Archive.org research specialist. Note: Archive.org is best for
-historical documents, primary sources, books, and media — not academic papers.
-Search terms should be broad.
-Tool: `bash skills/research/tools/search-archive.sh "<query>" <max_results>`
-Where `<max_results>` defaults to 10.
-Output: `work/research/sources/archive.md`
+  - name: synthesis-writer
+    trigger: route("arxiv-researcher") AND route("github-researcher") AND
+      route("pubmed-researcher") AND route("archive-researcher") AND
+      route("web-researcher")
+    input: [user_request]
+    role: >
+      You are a research synthesis specialist. Read all source output files
+      from `work/research/sources/`. Produce a consolidated markdown reference
+      that includes:
 
-**Agent: web-researcher**
-Role: You are a web research specialist. Since web search is only available via
-agent-level tools, use the WebSearch tool directly. Search for the refined
-query, read the most relevant results, and synthesize them.
-Tool: _not a bash script_ — use the built-in `WebSearch` tool in your agent
-toolkit. You can also use `WebFetch` to read pages.
-Constraints: Do NOT exceed 15 web requests total. Focus on quality over
-quantity: find the 3-5 best sources and summarize them well.
-Output: `work/research/sources/web.md`
+      1. **Unified summary** — what the research found, organized by theme,
+         not by source
+      2. **Key findings** — the most important discoveries, patterns, or
+         disagreements across sources (ranked by relevance)
+      3. **Gaps** — what was NOT found that would be useful
+      4. **Source-by-source notes** — brief notes on what each source
+         contributed and any limitations (e.g., "GitHub search was noisy due
+         to many forks")
 
----
+      Be concise. This is a curated briefing, not a dump.
+    skills: []
+    output: work/research/synthesis.md
+    route: always -> report-writer
 
-### Phase 3 — Synthesis (sequential, after Phase 2)
+  - name: report-writer
+    trigger: route("synthesis-writer")
+    input: [user_request]
+    role: >
+      You are a research report writer. Read `work/research/synthesis.md`
+      and write a polished final report to the output path.
 
-- **Agent: synthesis-writer**
-  Role: You are a research synthesis specialist. Read all source output files
-  from `work/research/sources/`. Produce a consolidated markdown reference
-  that includes:
+      The report should be:
+      - Well-structured with sections and sub-sections
+      - Written for a technical audience (the person who requested this
+        research)
+      - Actionable — include recommendations for next steps, further reading,
+        or areas that need more investigation
+      - Include source attribution (where each finding came from)
 
-  1. **Unified summary** — what the research found, organized by theme, not by
-     source
-  2. **Key findings** — the most important discoveries, patterns, or
-     disagreements across sources (ranked by relevance)
-  3. **Gaps** — what was NOT found that would be useful
-  4. **Source-by-source notes** — brief notes on what each source contributed
-     and any limitations (e.g., "GitHub search was noisy due to many forks")
+      Optional: If any source tool output raw markdown in
+      `work/research/sources/` that contains paper abstracts or detailed
+      metadata, reference it rather than duplicating.
+    skills: []
+    output: work/research/report/report.md
+    route: always -> cleanup
 
-  Be concise. This is a curated briefing, not a dump.
+  - name: cleanup
+    trigger: route("report-writer")
+    input: [user_request]
+    role: >
+      Delete the `work/research/sources/` and `work/research/queries.md`
+      files (intermediate artifacts). Keep `work/research/synthesis.md` and
+      `work/research/report/report.md`.
 
-  Output: `work/research/synthesis.md`
-
----
-
-### Phase 4 — Report Generation (sequential, after Phase 3)
-
-- **Agent: report-writer**
-  Role: You are a research report writer. Read `work/research/synthesis.md`
-  and write a polished final report to `work/research/report/report.md`.
-
-  The report should be:
-  - Well-structured with sections and sub-sections
-  - Written for a technical audience (the person who requested this research)
-  - Actionable — include recommendations for next steps, further reading, or
-    areas that need more investigation
-  - Include source attribution (where each finding came from)
-
-  Optional: If any source tool output raw markdown in `work/research/sources/`
-  that contains paper abstracts or detailed metadata, reference it rather than
-  duplicating.
-
-  Output: `work/research/report/report.md`
-
----
-
-### Phase 5 — Cleanup (sequential)
-
-Delete the `work/research/sources/` and `work/research/queries.md` files
-(intermediate artifacts). Keep `work/research/synthesis.md` and
-`work/research/report/report.md`.
-
-Report final status to the user: what sources were searched, what was produced,
-and where the report lives.
+      Report final status to the user: what sources were searched, what was
+      produced, and where the report lives.
+    skills: []
+    output: work/research/cleanup-done.md
+    route: always -> consolidator
 
 ---
 
@@ -228,7 +270,9 @@ and where the report lives.
 
 2. Add one row to the **Source Table** in this SKILL.md
 
-3. Add one entry in **Phase 2** with agent instructions for that source
+3. Add one entry in the `## Graph` section with a researcher node for that
+   source, with `trigger: route("query-refiner")` and
+   `route: always -> synthesis-writer`
 
 That's it. Neither the orchestration logic nor the other tools need changes.
 
