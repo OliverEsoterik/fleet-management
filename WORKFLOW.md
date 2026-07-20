@@ -1,10 +1,20 @@
 # Skill & Agent Dependency Graph
 
-The orchestrator (`skills/orchestrator/`) is a **graph engine** that routes work through a shared state machine. When you invoke it, it:
+The orchestrator (`skills/orchestrator/`) is a **graph engine** that chains skills and agents together based on your request. When you invoke it, it:
 
-1. Scans all skills and agents, builds `skill_index` and `agent_index` with `produces` metadata
-2. Runs the **chain-planner** — detects chain language in your request ("first X then Y") or shows a menu of Fast/Safe/Thorough. Each step gets a model assignment. Agent steps use the agent's frontmatter model.
-3. You pick a chain, confirm the plan, and the orchestrator routes through the nodes, enforcing model assignments per step
+1. **Scans** all skills and agents, builds `skill_index` and `agent_index` with `produces` metadata
+2. **Chain-planner** reads your request and builds a chain of steps. Each step is a skill or agent dispatch. If you describe a chain ("first research X, then architect a solution"), it builds those steps literally. If your request is generic, it shows a menu of standard chains (Fast/Safe/Thorough).
+3. **Model assignment** — each step gets a model. Agent steps use the agent's frontmatter model. Skill steps use defaults (sonnet for architect, haiku for review, default for code).
+4. **Confirm gate** shows you the full chain with model assignments. You approve, modify, or abort.
+5. **Router** launches each step in sequence, enforcing model assignments per step. The first step could be `architect`, `research`, `gitops-expert`, or any skill or agent — it depends on your chain.
+
+**Example:** Say "research transformer architectures, then architect a solution, then review the plan." The chain-planner builds:
+
+```
+research [haiku] → architect [sonnet] → code-review [haiku] → consolidator
+```
+
+Three separate dispatches, each with its own model. No collapsing, no dedup.
 
 Skills are **methodology** (step-by-step instructions), **graph** (node-based workflow with triggers + routes), or **data provider** (bash scripts). Agents wrap skills with preferred models and domain expertise — the orchestrator prefers agents over raw skills when a match is found.
 
@@ -22,7 +32,7 @@ flowchart LR
   decomposer["decomposer<br/>—— scans skills + agents,<br/>builds both indices"]
   chainPlanner["chain-planner<br/>—— builds chain from description<br/>or shows menu,<br/>assigns models per step,<br/>prefers agents over skills"]
   confirm["confirm gate<br/>—— you approve the plan<br/>with model assignments"]
-  coder["coder"]
+  chain["selected chain steps<br/>—— depends on user's choice<br/>(architect, research, code-review,<br/>gitops-expert, coder, ...)"]
   audit["audit nodes<br/>security-reviewer, test-auditor"]
   human["human_input<br/>—— pauses, asks you"]
   consolidator["consolidator"]
@@ -30,16 +40,16 @@ flowchart LR
   user --> decomposer
   decomposer --> chainPlanner
   chainPlanner --> confirm
-  confirm --> coder
-  coder -->|errors found| audit
-  coder -->|no audit needed| consolidator
-  audit -->|errors AND iter < 5| coder
+  confirm --> chain
+  chain -->|errors found| audit
+  chain -->|no audit needed| consolidator
+  audit -->|errors AND iter < 5| chain
   audit -->|errors AND iter >= 5| human
   audit -->|no errors| consolidator
-  human -->|continue| coder
+  human -->|continue| chain
   human -->|skip/abort| consolidator
 
-  class decomposer,chainPlanner,coder,audit,consolidator node
+  class decomposer,chainPlanner,chain,audit,consolidator node
   class confirm,human gate
 ```
 
