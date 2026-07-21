@@ -172,7 +172,7 @@ Nodes:
       6. If the skill is a methodology that produces a specific type of
          output, document it in the `produces` field of the orchestrator's
          skill_index (e.g., `produces: [analysis, adr, plan]`). This is
-         used by the chain-planner for dependency resolution.
+         used by the graph-planner for dependency resolution.
     skills: [create-skill]
     output: work/<skill-name>/plan.md
     route: always -> skill-writer

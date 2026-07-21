@@ -3,8 +3,9 @@ name: orchestrator
 description: >
   Graph-engine orchestrator for the fleet-management project. Routes work
   through a data-driven state machine. No hardcoded node types — skills
-  register their own graph nodes dynamically. Generic router, not a
-  software-engineering pipeline.
+  register their own graph nodes dynamically. Dynamic graph-planner node
+  designs a custom topology per request: decomposes into parallel tasks,
+  selects agents/skills, routes with verifiers and barriers.
 ---
 
 # Orchestrator — Generic Graph Engine
@@ -17,10 +18,10 @@ and writes results back. It does not own the logic — it only follows transitio
 
 **What makes this generic (not code-specific):**
 - No built-in "coder" or "security-reviewer" or "test-auditor" node types
-- Chain templates use step *roles* (work, review, plan, fix) resolved to actual
-  skills at build time
 - Graph skills register their own nodes dynamically — the orchestrator doesn't
   care what they do
+- The graph-planner designs topologies by matching request to available
+  skills/agents, not by hardcoded templates
 - The router follows whatever nodes are registered, not a hardcoded priority list
 
 **Announce at start:** "I'm using the graph engine to route this through the state machine."
@@ -28,42 +29,49 @@ and writes results back. It does not own the logic — it only follows transitio
 ### Flow
 
 ```
-User request → decomposer → chain-planner (user picks a chain)
-  → confirm (user approves) → execute nodes (dynamically registered) → consolidate
+User request → decomposer → graph-planner (designs topology)
+  → confirm (you approve) → execute nodes (parallel + sequential) → consolidate
 ```
 
-The chain-planner is mandatory on every invocation. Even for a one-line fix,
-you see available chain options and pick one.
+The graph-planner is mandatory on every invocation. Even for a one-line fix,
+you see the proposed topology and approve it before execution.
 
 ### Architecture
 
 ```
-                    ┌──────────────────────────┐
-                    │     SHARED STATE         │
-                    │  work/graph/state.json   │
-                    │  status, chains, nodes{} │
-                    └──────────┬───────────────┘
-                               │
-                   ┌───────────┴───────────┐
-                   │        ROUTER         │
-                   │  f(state) -> next     │
-                   └───────────┬───────────┘
-                               │
-          ┌──────────┬─────────┼─────────┬──────────┐
-          ▼          ▼         ▼         ▼          ▼
-   ┌──────────┐  ┌────────┐ ┌──────┐ ┌───────┐ ┌──────────┐
-   │ chain-   │  │confirm │ │exec  │ │ graph │ │human_    │
-   │ planner  │  │(gate)  │ │nodes │ │skill  │ │input     │
-   └─────┬────┘  └───┬────┘ │      │ │nodes  │ └────┬─────┘
-         │           │      └──────┘ └───────┘      │
-         └───────────┴────────────┬─────────────────┘
-                                  ▼
-                           ┌──────────────┐
-                           │ consolidator │
-                           └──────────────┘
+```
+                    ┌─────────────────────────────┐
+                    │       SHARED STATE          │
+                    │  work/graph/state.json      │
+                    │  status, topology, nodes{}  │
+                    │  _dependencies, _barriers   │
+                    └─────────────┬───────────────┘
+                                  │
+                      ┌───────────┴───────────┐
+                      │        ROUTER         │
+                      │  f(state) -> ready[]  │
+                      └───────────┬───────────┘
+                                  │
+          ┌────────────┬──────────┼──────────┬─────────────┐
+          ▼            ▼          ▼          ▼             ▼
+   ┌────────────┐ ┌────────┐ ┌─────────┐ ┌────────┐ ┌──────────┐
+   │ graph-     │ │confirm │ │ parallel│ │ graph  │ │human_    │
+   │ planner    │ │(gate)  │ │ exec    │ │skill   │ │input     │
+   └──────┬─────┘ └───┬────┘ │ nodes   │ │nodes   │ └────┬─────┘
+          │            │      └─────────┘ └────────┘      │
+          └────────────┴────────────┬─────────────────────┘
+                                    ▼
+                             ┌──────────────┐
+                             │ consolidator │
+                             └──────────────┘
 ```
 
-"Exec nodes" are dynamically registered per chain step — methodology skills,
+"Exec nodes" now support parallel execution: multiple nodes whose dependencies
+are satisfied fire concurrently as background sub-agents. The router returns a
+*set* of ready nodes, not a single next node.
+```
+
+"Exec nodes" are dynamically registered per topology step — methodology skills,
 agents, or generic executors.
 "Graph skill nodes" are registered from a skill's `## Graph` section.
 
@@ -71,21 +79,21 @@ agents, or generic executors.
 
 - **State router, not puppeteer.** The orchestrator never copies text between
   agents. Nodes write to shared state; the next node reads from it.
-- **Chain planner before confirm gate.** You pick a skill chain first, then
-  confirm the detailed plan.
+- **Graph planner before confirm gate.** The system designs a topology first,
+  then you review and approve it. No execution happens without your go-ahead.
 - **No hardcoded node types.** coder, security-reviewer, test-auditor do not
-  exist. Every execution node is dynamically registered from chain steps or
+  exist. Every execution node is dynamically registered from topology nodes or
   skill graphs.
-- **Orchestration nodes are inline.** decomposer, chain-planner, confirm, and
+- **Orchestration nodes are inline.** decomposer, graph-planner, confirm, and
   consolidator run in your (the orchestrator's) main context.
 - **Execution nodes are sub-agents.** Any dynamically registered node that does
   real work runs as an isolated sub-agent for token separation.
-- **Graph skill nodes are first-class.** When a chain step references a graph
+- **Graph skill nodes are first-class.** When a topology step references a graph
   skill (e.g., create-skill, research), all its nodes are registered in the
   state machine and routed through like built-in nodes.
-- **Micro-loops are chain-driven.** Review → fix → re-review is encoded in
-  chain step types, not in hardcoded node names. The fix step is a re-run of
-  the work step with review feedback injected.
+- **Micro-loops are graph-driven.** Review → fix → re-review is expressed as
+  a cycle edge in the topology. The fix node re-runs with review feedback
+  injected. The router tracks iteration counters per cycle edge, not per step.
 
 ---
 
@@ -102,9 +110,9 @@ truth. The orchestrator creates it on first invocation.
 |--------|---------|
 | `START` | Initial state. |
 | `DECOMPOSING` | Breaking request into tasks. |
-| `CHAINING` | Building chain proposals. |
-| `CONFIRM` | Waiting for user approval. |
-| `EXECUTING` | One or more execution nodes active. |
+| `PLANNING` | Designing graph topology (nodes, edges, parallel paths). |
+| `CONFIRM` | Waiting for user approval on the proposed topology. |
+| `EXECUTING` | One or more execution nodes active (may be parallel). |
 | `HUMAN_REVIEW` | Waiting for user input (paused). |
 | `ERROR` | Unrecoverable error. |
 | `COMPLETE` | Work finished. |
@@ -120,29 +128,31 @@ Nodes are either **inline** or **sub-agent**. The orchestrator handles both.
 | Node | Type | Purpose |
 |------|------|---------|
 | `decomposer` | inline | Index skills/agents, decompose user request |
-| `chain-planner` | inline | Build chain proposals, get user choice |
-| `confirm` | inline | Activate selected chain, get user approval |
+| `graph-planner` | inline | Design graph topology, present for approval |
+| `confirm` | inline | Activate selected topology, get user approval |
 | `human_input` | inline | Pause for user escalation or modification |
 | `consolidator` | inline | Read all output, present final results |
 
-### Dynamically registered nodes (per chain step)
+### Dynamically registered nodes (per topology step)
 
-When the confirm node activates a chain, it registers nodes based on each
-step's type. These join the state machine alongside the built-in nodes.
+When the confirm node activates a topology, it registers nodes from the
+selected topology's node list. These join the state machine alongside the
+built-in nodes. Nodes with no dependencies on other topology nodes are set to
+`"ready"` immediately. Nodes with dependencies wait for their inputs.
 
-**Step types and their node registration:**
+**Node types and their registration:**
 
-| Step type | Registration |
+| Node type | Registration |
 |-----------|-------------|
-| `skill` (methodology) | One node named `<step-index>-<skill-name>`. Sub-agent reads the skill's SKILL.md and executes it. |
-| `skill` (graph) | All nodes from the skill's `## Graph` section, prefixed with `<step-index>-<skill-name>.`. Each is registered with its defined trigger, role, skills, output, and route. |
-| `agent` | One node named `<step-index>-<agent-name>`. Sub-agent reads the agent's brain.md and runs with its configured model and tools. |
-| `fix` | One node named `<step-index>-fix`. Sub-agent receives the preceding work step's output plus review feedback, re-does the work. |
-| `plan` | One node named `<step-index>-plan`. Sub-agent reads the planning skill and produces a plan. |
+| `skill` (methodology) | One node `<label>`. Sub-agent reads the skill's SKILL.md and executes it. |
+| `skill` (graph) | All nodes from the skill's `## Graph` section, prefixed with `<label>.`. Each registered with its defined trigger, role, skills, output, and route. |
+| `agent` | One node `<label>`. Sub-agent reads the agent's brain.md and runs with its configured model and tools. |
+| `fix` | One node `<label>`. Sub-agent receives the preceding work node's output plus review feedback, re-does the work. |
+| `plan` | One node `<label>`. Sub-agent reads the planning skill and produces a plan. |
 
-**Node naming convention:** Dynamic nodes are named `<step-index>-<label>`
-(e.g., `1-research`, `2-code-review`, `3-create-skill.source-validator`).
-This prevents collisions when multiple skills are in the same chain.
+**Node naming convention:** Nodes are named by their label in the topology
+(e.g., `research-arxiv`, `synthesize-findings`, `verify-security`).
+Graph-skill nodes are prefixed `<label>.` to prevent collisions.
 
 **Rule of thumb for inline vs sub-agent:**
 - If the node produces user-facing output or makes routing decisions — inline
@@ -175,136 +185,199 @@ This prevents collisions when multiple skills are in the same chain.
 **Output (writes to state):** See `skills/orchestrator/examples/decomposer-output.md`
 for the full format.
 
-**Routing:** Always -> `chain-planner`
+**Routing:** Always -> `graph-planner`
 
 ---
 
-### Node: `chain-planner` (inline)
+### Node: `graph-planner` (inline)
 
-**Trigger:** `state.routing.next_node == "chain-planner"`
+**Trigger:** `state.routing.next_node == "graph-planner"`
 
-**Mandatory.** Runs on every invocation. You see chain options before any
-work starts.
+**Mandatory.** Runs on every invocation. You see the proposed topology before
+any work starts.
 
 **Input:** `state.user_request`, `state.decomposition.tasks`,
 `state.skill_index`, `state.agent_index`
 
 **Behavior:** Run this inline — do not launch a sub-agent.
 
-1. Set `state.status = "CHAINING"`.
-2. Build chain proposals directly.
+1. Set `state.status = "PLANNING"`.
+2. Design graph topologies directly, using graph engineering principles.
 
-#### Step A: Check if the user already described a chain
+#### Step A: Check if the user already described a topology
 
-Scan the user's request for chain language:
+Scan the user's request for graph language:
 - Sequential connectors: "first... then", "next", "after that", "and then"
+- Parallel indicators: "at the same time", "in parallel", "simultaneously",
+  "both", "all of these"
 - Ordered lists: "1." "2." "3.", "step 1" "step 2"
 - Explicit skill or agent names (matched against both indices)
+- Verifier language: "verify", "double-check", "validate", "confirm"
+- Conditional language: "if... then", "depending on", "in case of"
 
-**If chain language is detected:**
-- Parse into individual steps. Each connector-separated clause is one step.
-- For each step, match against `agent_index` first, then `skill_index`:
+**If structured language is detected:**
+- Parse into a graph topology with nodes and edges:
+  - Each sequential/parallel clause becomes a node
+  - "And then" / "next" becomes a sequential edge
+  - "At the same time" / "in parallel" marks nodes as parallel (no edge between them)
+  - "If X then Y" becomes a router node with conditional edges
+  - "Verify" / "validate" after a node becomes a verifier edge
+- For each node, match against `agent_index` first, then `skill_index`:
   - **Agent match (highest priority):** Exact name match. Use the agent's
-    `skills` list and `model`. Step type becomes `"agent"`.
+    `skills` list and `model`. Node type becomes `"agent"`.
   - **Skill match:** Name match, description keyword match, or task verb match.
   - **Agent fallback by skill:** If no agent matched by name, check if any
     agent lists the matched skill in its `skills` field. If yes, prefer the agent.
-  - If no match: step type becomes `"work"` (generic executor, model: default).
-- Build **exactly as described**. No collapsing, dedup, or reordering.
-  Add warnings as notes.
-- Add a `consolidator` step at the end if not already present.
-- Assign models per step — agent frontmatter model takes precedence.
-- Show as a single resolved chain — **no menu.**
+  - If no match: node type becomes `"work"` (generic executor, model: default).
+- Build **exactly as described**. No collapsing or reordering. Add warnings
+  as notes.
+- Assign models per node — agent frontmatter model takes precedence.
+- Show the topology directly — **no menu of alternatives.**
 
-**See `skills/orchestrator/examples/chain-proposal-described.md` for output format.**
+#### Step B: No topology language detected — design from scratch
 
-#### Step B: No chain language detected — show menu
+Design 2-3 topology proposals using graph engineering principles.
 
-Show standard chains built dynamically from the indices. The templates use
-step *roles* resolved to actual skills at build time:
+**Design process:**
 
-**Step roles and resolution:**
+1. **Start from the output.** What is the user asking for? What shape does
+   the final answer have? That's your merge/synthesize node.
 
-| Role | Resolution |
-|------|-----------|
-| `work` | The primary skill(s) matched to the user's request |
-| `review` | Scan skill_index for skills whose name/description matches "review", "audit", "sre", "inspect", "check". Prefer the best description match relative to `work`. If none found, skip with a note. |
-| `plan` | Scan skill_index for skills whose name/description matches "architect", "strategy", "plan", "design". If none found, skip with a note. |
-| `fix` | Special step type. Re-runs the `work` step with review feedback injected. Always paired with a preceding `review` step. |
+2. **Decompose by data independence.** What independent pieces feed the
+   final answer? Each independent piece is a fan-out node. If the request
+   has multiple sources, lenses, or dimensions, each gets its own node.
 
-**Template chains:**
+3. **Add verifiers on critical edges.** If the output quality matters
+   (code, financial analysis, security audit), add a verifier node between
+   synthesis and output. For high-stakes work, use perspective-diverse
+   verifiers (correctness, security, performance).
 
-- **Fast** — `work` -> consolidator
-- **Safe** — `work` -> `review` -> `fix` -> consolidator
-- **Thorough** — `plan` -> `work` -> `review` -> `fix` -> consolidator
+4. **Add routers where classification is needed.** If the request has
+   conditional paths ("if the finding is severe, do X; if not, do Y"),
+   add a router node that classifies and branches.
 
-If `plan` or `review` roles cannot be resolved to a real skill, those steps
-are dropped with a note to the user.
+5. **Tier models per node.** Fan-out/research nodes get cheaper models.
+   Synthesis/judgment nodes get expensive ones. Verifiers get cheap ones
+   (multiple cheap verifiers > one expensive one).
 
-If an agent matches the request, use it instead of the raw skill for the
-`work` role.
+6. **Estimate cost.** Approximate token count per node, multiply by
+   model tier cost, sum. Write to state.
 
-**See `skills/orchestrator/examples/chain-proposal-menu.md` for output format.**
+**Topology templates (adapt, don't copy):**
 
-#### Model assignment per step
+| Pattern | When | Structure |
+|---------|------|-----------|
+| **Diamond** | Research, data gathering, multi-source analysis | Fan-out N parallel researchers → reduce (code) → synthesize |
+| **Diamond + Verifier** | Code review, security audit, financial analysis | Fan-out N reviewers → synthesize → verify (adversarial) → output |
+| **Router** | Classification-dependent handling | Classify node → [heavy path | light path] → output |
+| **Cycle** | Unknown-size discovery, bug sweep | Parallel finders → dedupe (code) → verify → loop until dry |
+| **Pipeline** | Batch processing through stages | Stage-1 → stage-2 → stage-3 (each item independent) |
+| **Composite** | Complex multi-phase work | Phase 1 diamond → phase 2 cycle → phase 3 verifier chain |
 
-| Step role | Model |
+**Model assignment defaults:**
+
+| Node role | Model |
 |-----------|-------|
-| plan, architecture | `sonnet` |
-| work, execution (code-adjacent) | `default` |
-| work, execution (research, analysis) | `haiku` |
-| review, audit | `haiku` |
-| fix | `sonnet` |
+| planning, architecture, design | `sonnet` |
+| synthesis, judgment, adjudication | `sonnet` |
+| fan-out, research, data gathering | `haiku` |
+| verification, review, audit | `haiku` |
+| classification, extraction, routing | `haiku` |
+| code generation, fix | `sonnet` |
 | no clear type | `default` |
 
-**Agent override:** Agent's frontmatter `model` takes precedence over the table.
+**Agent override:** Agent's frontmatter `model` takes precedence.
 
-#### Wait and write
+#### Step C: Present topologies to user
 
-3. Present the chain options to the user directly (not via sub-agent).
-   Wait for their choice.
-4. Write the selected chain to state.json.
+Show 2-3 topology proposals with enough detail to make a decision.
+For each proposal:
 
-**Output (writes to state):**
+```
+Topology A: Diamond + Verifier (recommended)
+Description: Fan-out 3 research agents → synthesize findings → verify with adversarial check
+
+Nodes:
+- research-arxiv (skill: research, model: haiku): Searches arXiv for papers
+- research-web (skill: research, model: haiku): Searches web for recent posts
+- research-github (skill: research, model: haiku): Searches GitHub for implementations
+- synthesize (skill: writing-plans, model: sonnet): Merges findings into report
+- verify (skill: code-review, model: haiku): Adversarially checks each claim
+- consolidator: Presents final output
+
+Edges:
+- research-arxiv → synthesize (papers feed synthesis)
+- research-web → synthesize (posts feed synthesis)
+- research-github → synthesize (repos feed synthesis)
+- synthesize → verify (draft gets verified)
+- verify → consolidator (verified report presented)
+
+Topology: diamond (fan-out 3, fan-in 1, verifier on merge)
+Cost estimate: ~6K-10K tokens (3x haiku + 1x sonnet + 1x haiku)
+```
+
+**Ask the user to pick one, or describe modifications.** Do not proceed
+without their choice.
+
+#### Step D: Write selected topology to state
+
 ```json
 {
-  "status": "CHAINING",
-  "chains": [
+  "status": "PLANNING",
+  "graph_topologies": [
     {
-      "name": "Safe",
-      "description": "Work + review + fix",
-      "steps": [
-        { "type": "skill", "name": "research", "model": "haiku",
-          "role": "work" },
-        { "type": "skill", "name": "code-review", "model": "haiku",
-          "role": "review", "note": "Resolved from skill_index" },
-        { "type": "node", "name": "fix", "model": "sonnet",
-          "role": "fix" },
-        { "type": "node", "name": "consolidator", "model": "default" }
-      ]
+      "name": "Diamond with Verifier",
+      "description": "Fan-out 3 research sources → synthesize → verify",
+      "nodes": [
+        { "id": "research-arxiv", "type": "skill", "name": "research",
+          "model": "haiku", "inputs": [], "outputs": ["findings-arxiv"] },
+        { "id": "research-web", "type": "skill", "name": "research",
+          "model": "haiku", "inputs": [], "outputs": ["findings-web"] },
+        { "id": "research-github", "type": "skill", "name": "research",
+          "model": "haiku", "inputs": [], "outputs": ["findings-github"] },
+        { "id": "synthesize", "type": "skill", "name": "writing-plans",
+          "model": "sonnet", "inputs": ["findings-arxiv", "findings-web",
+            "findings-github"], "outputs": ["draft"] },
+        { "id": "verify", "type": "skill", "name": "code-review",
+          "model": "haiku", "inputs": ["draft"], "outputs": ["verdict"] },
+        { "id": "consolidator", "type": "node", "role": "consolidator",
+          "inputs": ["draft", "verdict"], "outputs": [] }
+      ],
+      "edges": [
+        { "from": "research-arxiv", "to": "synthesize",
+          "data": "findings-arxiv" },
+        { "from": "research-web", "to": "synthesize",
+          "data": "findings-web" },
+        { "from": "research-github", "to": "synthesize",
+          "data": "findings-github" },
+        { "from": "synthesize", "to": "verify", "data": "draft" },
+        { "from": "verify", "to": "consolidator", "data": "verdict" }
+      ],
+      "topology": "diamond",
+      "cost_estimate": { "tokens": "6K-10K",
+        "breakdown": "3x haiku research + 1x sonnet synthesis + 1x haiku verify" }
     }
   ],
-  "selected_chain": 0,
-  "routing": { "last_node": "chain-planner", "next_node": "confirm",
-    "reason": "chain selected" }
+  "selected_topology": 0,
+  "routing": { "last_node": "graph-planner", "next_node": "confirm",
+    "reason": "topology selected" }
 }
 ```
 
-**Step fields:** `type` (skill|agent|node), `name` (skill/agent name or
-generic role), `model`, `role` (work|review|fix|plan), optional `tools`,
-`skills`, `note`.
+**Node fields:** `id` (unique label), `type` (skill|agent|node), `name`
+(skill/agent name), `model`, `inputs` (list of output IDs from upstream nodes),
+`outputs` (list of output IDs this node produces), optional `role`, `tools`,
+`skills`.
 
 **Routing:** Always -> `confirm`. If user aborts -> consolidator.
 
 **Edge cases:**
-- **Partial steps:** Build described steps + Fast-style defaults for the rest.
-- **No skills or agents matched:** Build a single generic `work` step (executor).
-- **Unmatched step:** Leave as generic `work`, note to user.
+- **No skills or agents matched:** Build a single generic `work` node.
+- **Unmatched node:** Leave as generic `work`, note to user.
 - **Agent with empty skills field:** Use agent without referencing a specific skill.
-- **Multiple agents match:** Prefer the most specific description. If ambiguous,
-  list as options.
-- **Review step but no review skill found:** Drop the review and fix steps,
-  note to user.
+- **Multiple agents match same skill:** List as options in the topology proposal.
+- **User says "just do it":** Propose the simplest topology (diamond or single
+  node) and ask for approval once. Do not skip the confirm gate.
 
 ---
 
@@ -314,69 +387,90 @@ generic role), `model`, `role` (work|review|fix|plan), optional `tools`,
 
 **Mandatory approval gate.**
 
-**Input:** `state.user_request`, `state.decomposition`, `state.chains`,
-`state.selected_chain`, `state.selected_chain_steps`, `state.skill_index`,
+**Input:** `state.user_request`, `state.decomposition`, `state.graph_topologies`,
+`state.selected_topology`, `state.skill_index`,
 `state.agent_index`, `state.nodes`
 
 **Behavior:** Run this inline — do not launch a sub-agent.
 
 1. Set `state.status = "CONFIRM"`.
-2. Read the selected chain (`state.chains[state.selected_chain]`).
-3. Activate nodes from chain steps. For each step in order:
+2. Read the selected topology (`state.graph_topologies[state.selected_topology]`).
+3. Activate nodes from the topology's node list:
 
-   **If step type is `"skill"` and the skill has a `## Graph` section:**
+   For each node in the topology:
+
+   **If node type is `"skill"` and the skill has a `## Graph` section:**
    - Read the skill's `## Graph` section
    - Register each of its nodes in state, prefixing names with
-     `<step-index>-<skill-name>.`
+     `<topology-node-id>.`
    - Use each node's defined `trigger`, `role`, `skills`, `output`, `route`
-   - Set the first node in the graph to `"ready"`
-   - Store the graph's internal routing rules so the router can follow them
+   - Set the first node in the skill's graph to `"ready"`
+   - Store the graph's internal routing rules
 
-   **If step type is `"skill"` (methodology — no graph):**
-   - Register one node named `<step-index>-<skill-name>`
-   - Set its status to `"ready"`
-   - Store its route: after completion, route to the next chain step
+   **If node type is `"skill"` (methodology — no graph):**
+   - Register one node named `<topology-node-id>`
+   - Set its status to `"pending"` (will become ready when dependencies met)
 
-   **If step type is `"agent"`:**
-   - Register one node named `<step-index>-<agent-name>`
-   - Set its status to `"ready"`
+   **If node type is `"agent"`:**
+   - Register one node named `<topology-node-id>`
+   - Set its status to `"pending"`
 
-   **If step type is `"node"` (generic role like `fix` or `consolidator`):**
-   - Register one node named `<step-index>-<role>`
-   - If role is `"fix"`: set status to `"pending"` (activated when preceding
-     review step completes)
-   - If role is `"consolidator"`: set status to `"pending"` (always last)
-   - Otherwise: set status to `"ready"`
+   **If node type is `"node"` (generic role like `fix` or `consolidator`):**
+   - Register one node named `<topology-node-id>`
+   - Set its status to `"pending"`
 
-4. Present the plan to the user directly (not via sub-agent).
-   **See `skills/orchestrator/examples/confirm-gate.md` for output format.**
+4. **Compute dependencies from topology edges.** For each node, find all
+   upstream nodes whose outputs feed into it. Store as `_dependencies`:
 
-**Routing:** "proceed" -> first ready node. "change chain" -> route to
-chain-planner. "modify tasks" / "add nodes" -> route to human_input.
+   ```json
+   {
+     "_dependencies": {
+       "synthesize": ["research-arxiv", "research-web", "research-github"],
+       "verify": ["synthesize"],
+       "consolidator": ["verify"]
+     }
+   }
+   ```
+
+   Nodes with no dependencies (`research-*` above) are immediately set to
+   `"ready"`.
+
+5. Present the topology to the user directly (not via sub-agent).
+   Show:
+   - The node list with their types, skills, and models
+   - The edges showing data flow
+   - The topology shape (diamond, pipeline, etc.)
+   - The cost estimate
+   - Which nodes will run in parallel (those with no dependencies)
+   - Ask: "Proceed with this topology?"
+
+**Routing:** "proceed" -> router (which finds all ready nodes).
+"change topology" -> route to graph-planner.
+"modify tasks" / "add nodes" -> route to human_input.
 "abort" -> consolidator.
 
-**Node activation detail for graph skills:**
+**Graph skill internal routing:**
 
-When activating a graph skill's nodes, create a mapping entry so the router
-can resolve graph-internal routing:
+When activating a graph skill's nodes as part of a topology node, create a
+mapping entry so the router can resolve graph-internal routing:
 
 ```json
 {
   "_graph_routes": {
-    "<step-index>-<skill-name>": {
+    "<topology-node-id>": {
       "entry": "<first-node-name>",
       "routes": [
         { "from": "<node-a>", "condition": "always", "to": "<node-b>" }
       ],
       "sink": "<last-node-name>",
-      "chain_exit": "<next-step-index>"
+      "topology_exit": "<next-topology-node-id>"
     }
   }
 }
 ```
 
 When the last node of a graph skill completes, the router routes to the next
-step in the chain (the `chain_exit` target).
+topology node that depends on its output.
 
 ---
 
@@ -384,7 +478,7 @@ step in the chain (the `chain_exit` target).
 
 **Trigger:** `state.routing.next_node == "human_input"`
 
-**Pauses the graph** for error escalation, plan modification, or chain re-route.
+**Pauses the graph** for error escalation, plan modification, or topology re-route.
 
 **Behavior:** Present context, wait for response, write to
 `state.nodes.human_input`.
@@ -392,8 +486,8 @@ step in the chain (the `chain_exit` target).
 **Routing:**
 - "continue" -> reset counter, re-route to the node that triggered the pause
 - "skip" / "abort" -> consolidator
-- Plan modification -> re-run decomposer -> chain-planner
-- Chain re-route -> chain-planner
+- Plan modification -> re-run decomposer -> graph-planner
+- Topology re-route -> graph-planner
 
 ---
 
@@ -416,61 +510,126 @@ the final results to the user directly.
 
 ## 3. Router
 
-The router is `f(state) -> next_node`. Called after every node completes.
+The router is `f(state) -> ready_nodes[]`. Called after every node completes.
+Unlike a linear router that returns one next node, this router returns a *set*
+of nodes whose dependencies are satisfied. Multiple ready nodes fire in
+parallel.
 
 ```
-function get_next_node(state):
-    if state.status in ["COMPLETE", "ERROR"]: return None
-    if state.nodes.human_input.status == "responded": return route_from_human(state)
-    if state.routing.next_node: return state.routing.next_node
+function get_ready_nodes(state):
+    if state.status in ["COMPLETE", "ERROR"]: return []
+    if state.nodes.human_input.status == "responded":
+        return [route_from_human(state)]
 
-    # 1. Check dynamically registered nodes (execution nodes)
+    # 1. Check explicit routing override
+    if state.routing.next_node:
+        return [state.routing.next_node]
+
+    ready = []
+
+    # 2. Check topology dependencies
+    # A node is ready when:
+    #   a) Its status is "pending"
+    #   b) All its dependencies are "complete" (outputs available)
+    #   c) No other node with the same output target is still running
+    deps = state.get("_dependencies", {})
     for each name, node in state.nodes:
-        if name starts with "_": continue  # skip metadata keys
-        if node.status == "ready": return name
+        if name.startswith("_"): continue  # skip metadata
+        if node.status != "pending": continue
 
-    # 2. Check if a graph skill's last node just completed
-    active_graph = state._graph_routes
-    if active_graph:
-        for graph_key, graph_info in active_graph.items():
-            if graph_info.get("current_node") == graph_info.get("sink"):
-                chain_exit = graph_info.get("chain_exit")
-                if chain_exit:
-                    return chain_exit
-                break
+        node_deps = deps.get(name, [])
+        all_met = all(
+            state.nodes[d].get("status") == "complete"
+            for d in node_deps
+        )
+        if all_met:
+            ready.append(name)
 
-    # 3. Fall through to consolidator
-    return "consolidator"
+    # 3. Check graph skill internal routing
+    active_graph = state.get("_graph_routes", {})
+    for graph_key, graph_info in active_graph.items():
+        current = graph_info.get("current_node")
+        if current == graph_info.get("sink"):
+            topology_exit = graph_info.get("topology_exit")
+            if topology_exit and topology_exit not in ready:
+                ready.append(topology_exit)
+
+    # 4. Fall through to consolidator if nothing ready and nothing running
+    running = [n for n in state.nodes.values()
+               if n.get("status") == "running"]
+    if not ready and not running:
+        return ["consolidator"]
+
+    return ready
+```
+
+### Execution model
+
+```
+function execute_round(state):
+    ready = get_ready_nodes(state)
+
+    if not ready:
+        return  # nothing to do — wait for running nodes to finish
+
+    if len(ready) == 1:
+        # Single node — execute synchronously
+        execute_node(ready[0], state)
+        update_state(state)
+        execute_round(state)  # re-check for newly ready nodes
+    else:
+        # Multiple nodes — no dependencies between them → launch in parallel
+        for each node_name in ready:
+            state.nodes[node_name].status = "running"
+            launch_as_background_subagent(node_name, state)
+        # Return to caller. Background agent completion triggers re-check.
+        # (The pi harness notifies when background agents complete — on each
+        #  notification, re-read state, call get_ready_nodes, and fire again.)
 ```
 
 ### Priority
 
 1. `human_input` (highest — always checked first)
-2. Dynamically registered execution nodes (any status == "ready")
-3. Graph skill internal routing (node-to-node within a graph)
-4. Chain step progression (graph finished -> next step in chain)
-5. `consolidator` (always last)
+2. Topology dependency resolution (nodes whose inputs are all complete)
+3. Graph skill internal routing (node-to-node within a skill's graph)
+4. `consolidator` (always last, only when nothing is ready or running)
 
-### Micro-loop (chain-driven)
+### Fan-in barriers
 
-Micro-loops are encoded in the chain structure, not in hardcoded node names.
-A chain step with `role: "fix"` is a re-run of the preceding work step with
-review feedback injected. The router handles this by:
+A fan-in node (one with multiple dependencies) only fires when ALL upstream
+nodes complete. This is enforced by `_dependencies`:
 
-1. When a review step completes with findings, the `fix` step is set to
-   `"ready"`
-2. The `fix` step receives: the original work output + the review findings
-3. When the `fix` step completes, the review step is re-set to `"ready"`
-   (up to `max_iterations` times)
-4. After `max_iterations` or when review finds no issues, the chain proceeds
-
-```
-work -> review -> (has issues? -> fix -> re-run review)
-               -> (no issues?  -> consolidator)
+```json
+{
+  "_dependencies": {
+    "synthesize": ["research-arxiv", "research-web", "research-github"]
+  }
+}
 ```
 
-The router increments an iteration counter per work/review pair, not
-globally. Max 5 iterations per pair, then escalates to `human_input`.
+`synthesize` stays `"pending"` until all three research nodes report
+`"complete"`. The router checks the full dependency set every time.
+
+### Micro-loop (graph-driven)
+
+Micro-loops are expressed as cycle edges in the topology. When a topology
+has a cycle (e.g., `verify -> fix -> verify`), the router tracks iteration
+counters per edge:
+
+1. When `verify` completes with findings, the `fix` node's dependencies are
+   met -> `fix` becomes `"ready"`.
+2. `fix` runs, then `verify` runs again on the fixed output.
+3. If `verify` still has findings and iterations < max: loop again.
+4. If `verify` passes or iterations >= max: break the cycle, route to the
+   next downstream node or `consolidator`.
+
+```
+verify -> (has issues? -> fix -> verify)
+       -> (passes?      -> consolidator)
+```
+
+The router increments an iteration counter per cycle edge. Max 5 iterations,
+then escalates to `human_input`.
 
 ---
 
@@ -496,14 +655,10 @@ These are launched as sub-agents for token isolation.
 
 ```
 function resolve_model(state, node_name):
-    chain = state.chains[state.selected_chain]
-    for each step in chain.steps:
-        if step.type == "skill" AND step.name matches node_name:
-            return step.model
-        if step.type == "agent" AND step.name matches node_name:
-            return step.model
-        if step.type == "node" AND step.role matches node_name:
-            return step.model
+    topology = state.graph_topologies[state.selected_topology]
+    for each graph_node in topology.nodes:
+        if graph_node.id == node_name:
+            return graph_node.model
     return "default"
 ```
 
@@ -577,7 +732,7 @@ Constraints:
 | State file missing | Re-initialize. Warn user. |
 | Circular routing (same node 3x) | Force route to `human_input`. |
 | No valid next node | Set `ERROR`, route to `human_input`. |
-| Graph skill node not found in state | Log error, treat graph step as complete, route to next chain step. |
+| Graph skill node not found in state | Log error, treat graph step as complete, route to next topology node. |
 
 Recovery: write to `work/graph/errors.log`, set `status = "ERROR"`, route
 to `human_input`. User can reset, skip, or abort.
@@ -591,7 +746,7 @@ work/graph/
 ├── state.json              # Shared state
 ├── errors.log              # Graph-level errors
 ├── output/
-│   ├── <step-index>-<node-name>/   # One directory per execution node
+│   ├── <topology-node-id>/         # One directory per execution node
 │   └── consolidator/               # Final results
 ```
 
@@ -615,7 +770,7 @@ Each skill graph node must define:
 | `output` | Where it writes results | `work/research/sources/arxiv.md` |
 | `route` | Where to route next | `always -> synthesis-writer` |
 
-These are registered dynamically when the skill is referenced in a chain.
+These are registered dynamically when the skill is referenced in a topology.
 
 ---
 

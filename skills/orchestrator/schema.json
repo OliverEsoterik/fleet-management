@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "2.0",
   "workflow_id": "<uuid>",
   "created_at": "<ISO-8601>",
   "updated_at": "<ISO-8601>",
@@ -16,17 +16,18 @@
     "source": "skill-match | generic"
   },
 
-  "chains": [],
-  "selected_chain": -1,
+  "graph_topologies": [],
+  "selected_topology": -1,
 
   "nodes": {
-    "chain-planner": { "status": "pending", "output_summary": "" },
+    "graph-planner": { "status": "pending", "output_summary": "" },
     "confirm": { "status": "pending", "output_summary": "" },
     "human_input": { "status": "pending", "prompt": "", "response": "" },
     "consolidator": { "status": "pending", "output_summary": "" }
   },
 
   "_graph_routes": {},
+  "_dependencies": {},
 
   "routing": {
     "last_node": "",
