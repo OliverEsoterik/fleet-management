@@ -94,6 +94,9 @@ agents, or generic executors.
 - **Micro-loops are graph-driven.** Review → fix → re-review is expressed as
   a cycle edge in the topology. The fix node re-runs with review feedback
   injected. The router tracks iteration counters per cycle edge, not per step.
+- **Dynamic graph extension.** A node whose output contains an `_extensions`
+  field can trigger the graph-planner to inject new nodes into the running
+  graph mid-execution. This allows the topology to grow as work progresses.
 
 ---
 
@@ -113,6 +116,7 @@ truth. The orchestrator creates it on first invocation.
 | `PLANNING` | Designing graph topology (nodes, edges, parallel paths). |
 | `CONFIRM` | Waiting for user approval on the proposed topology. |
 | `EXECUTING` | One or more execution nodes active (may be parallel). |
+| `EXTENDING` | A node signaled extension needs; graph-planner is adding nodes. |
 | `HUMAN_REVIEW` | Waiting for user input (paused). |
 | `ERROR` | Unrecoverable error. |
 | `COMPLETE` | Work finished. |
@@ -194,15 +198,25 @@ for the full format.
 **Trigger:** `state.routing.next_node == "graph-planner"`
 
 **Mandatory.** Runs on every invocation. You see the proposed topology before
-any work starts.
+any work starts. Also runs **mid-execution** when a node signals a dynamic
+extension (see Section 3 — Dynamic Extension).
 
-**Input:** `state.user_request`, `state.decomposition.tasks`,
+**Input (`_extending: false` — initial planning):**
+`state.user_request`, `state.decomposition.tasks`,
 `state.skill_index`, `state.agent_index`
+
+**Input (`_extending: true` — dynamic extension):**
+`state._extend_context` (contains the node that signaled, its output,
+and the current state), `state.skill_index`, `state.agent_index`
 
 **Behavior:** Run this inline — do not launch a sub-agent.
 
-1. Set `state.status = "PLANNING"`.
-2. Design graph topologies directly, using graph engineering principles.
+1. Check if this is an initial planning call or a dynamic extension call.
+2. Set `state.status = "PLANNING"` (or `"EXTENDING"` if re-entering mid-execution).
+
+#### Initial planning (_extending: false, the default)
+
+Design graph topologies directly, using graph engineering principles.
 
 #### Step A: Check if the user already described a topology
 
@@ -369,7 +383,82 @@ without their choice.
 `outputs` (list of output IDs this node produces), optional `role`, `tools`,
 `skills`.
 
-**Routing:** Always -> `confirm`. If user aborts -> consolidator.
+**Routing:**
+- If `_extending: true` -> route to `router` (new nodes are injected into the
+  running graph immediately; no confirm gate for extensions)
+- If `_extending: false` -> always -> `confirm`
+- If user aborts -> consolidator
+
+#### Dynamic extension mode (_extending: true)
+
+Called when a node's output contains an `_extensions` field. The graph-planner
+receives context from `state._extend_context`:
+
+```json
+{
+  "_extend_context": {
+    "trigger_node": "research-arxiv",
+    "trigger_output": {
+      "_extensions": [
+        {
+          "description": "Found a promising sub-field that needs deeper investigation",
+          "task": "search for papers on topological quantum error correction",
+          "suggested_skill": "research",
+          "suggested_model": "haiku",
+          "depends_on_outputs": []
+        }
+      ],
+      "items": [...]
+    },
+    "current_state": { ... }
+  }
+}
+```
+
+**Behavior:** For each extension in the `_extensions` array:
+
+1. **Name the extension node** — generate a unique id by appending a counter
+   to the trigger node's id (e.g., `research-arxiv-ext-1`).
+
+2. **Match against skill/agent index** — same as Step A above: agent first,
+   then skill. If no match, use `"work"` (generic executor).
+
+3. **Assign model** — use `suggested_model` if provided, otherwise match from
+   the standard model assignment table.
+
+4. **Compute dependencies** — the extension node depends on the trigger node's
+   output (the data that revealed the extension), plus any explicit
+   `depends_on_outputs`. Add to `state._dependencies`.
+
+5. **Register the node** — set its status to `"pending"` and add it to
+   `state.nodes`.
+
+6. **Present to user** — show the extension proposal:
+
+```
+[GRAPH ENGINE — DYNAMIC EXTENSION]
+Node "research-arxiv" found new independent work:
+  → Added node "research-arxiv-ext-1" (skill: research, model: haiku)
+  → Task: search for papers on topological quantum error correction
+  → Will run after "research-arxiv" completes
+
+Proceed with this extension, modify, or skip?
+```
+
+   Wait for user input. Options:
+   - "proceed" — inject the extension nodes and continue execution
+   - "skip" — discard the extensions and continue execution
+   - "modify" — route to `human_input` for manual adjustment, then return
+
+7. **Write back to state** — update `state.nodes`, `state._dependencies`,
+   and set `state.status = "EXECUTING"`.
+
+**Key constraints:**
+- Extension nodes are always downstream of their trigger node (they depend on
+  its output). They cannot create dependencies on nodes that haven't run yet.
+- An extension node can itself trigger further extensions (chain of discovery).
+- Max 3 extension generations per root topology node. Tracked in
+  `state._extension_generation[node_id]`. Beyond that, route to `human_input`.
 
 **Edge cases:**
 - **No skills or agents matched:** Build a single generic `work` node.
@@ -554,7 +643,38 @@ function get_ready_nodes(state):
             if topology_exit and topology_exit not in ready:
                 ready.append(topology_exit)
 
-    # 4. Fall through to consolidator if nothing ready and nothing running
+    # 4. Check for dynamic extensions from completed nodes
+    # When a node completes, read its output file. If the output contains
+    # an _extensions field, the node has signaled new independent work
+    # that should be added to the graph dynamically.
+    for each name, node in state.nodes:
+        if name.startswith("_"): continue
+        if node.status == "complete":
+            output_path = f"work/graph/output/{name}/output.json"
+            if os.path.exists(output_path):
+                import json
+                with open(output_path, "r") as f:
+                    output = json.load(f)
+                if "_extensions" in output and output["_extensions"]:
+                    # Check extension generation limit
+                    gen = state.get("_extension_generation", {}).get(name, 0)
+                    if gen < 3:
+                        # Signal to graph-planner for extension
+                        state._extend_context = {
+                            "trigger_node": name,
+                            "trigger_output": output,
+                            "current_state": state
+                        }
+                        state._extension_generation.setdefault(name, 0)
+                        state._extension_generation[name] += 1
+                        return ["graph-planner"]
+                    else:
+                        # Max generations reached — log and skip
+                        state.graph_errors.append(
+                            f"Max extension generations (3) reached for node {name}"
+                        )
+
+    # 5. Fall through to consolidator if nothing ready and nothing running
     running = [n for n in state.nodes.values()
                if n.get("status") == "running"]
     if not ready and not running:

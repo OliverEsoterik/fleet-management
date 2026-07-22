@@ -2,30 +2,30 @@
 
 The orchestrator (`skills/orchestrator/`) is a **generic graph engine** that
 chains skills and agents together based on your request. No hardcoded node
-types — every execution node is registered dynamically from chain steps or
+types — every execution node is registered dynamically from topology nodes or
 skill graphs. When you invoke it, it:
 
 1. **Scans** all skills and agents, builds `skill_index` and `agent_index`
    with `produces` metadata
-2. **Chain-planner** reads your request and builds a chain of steps. Each
-   step is a skill or agent dispatch. If you describe a chain ("first research
+2. **Graph-planner** reads your request and builds a graph topology. Each
+   step is a skill or agent dispatch. If you describe a topology ("first research
    X, then architect a solution"), it builds those steps literally. If your
    request is generic, it shows a menu of standard chains (Fast/Safe/Thorough)
    using step roles (work, review, plan, fix) resolved to actual skills.
 3. **Model assignment** — each step gets a model. Agent steps use the agent's
    frontmatter model. Skill steps use defaults (sonnet for plan, haiku for
    review/analysis, default for code).
-4. **Confirm gate** shows you the full chain with model assignments. You
+4. **Confirm gate** shows you the full topology with model assignments. You
    approve, modify, or abort.
 5. **Dynamic node registration** — the confirm node registers nodes based on
    each step's type. Methodology skills get one node. Graph skills register
    all their internal nodes (prefixed with step index). Agents get one node.
 6. **Router** scans all registered nodes for "ready" status and launches them.
-   Graph-internal routing happens automatically. Chain steps progress as
+   Graph-internal routing happens automatically. Topology nodes progress as
    nodes complete.
 
 **Example:** Say "research transformer architectures, then architect a
-solution, then review the plan." The chain-planner builds:
+solution, then review the plan." The graph-planner builds:
 
 ```
 research [haiku] → architect [sonnet] → code-review [haiku] → consolidator
@@ -50,11 +50,11 @@ flowchart LR
 
   user["user request"]
   decomposer["decomposer<br/>—— scans skills + agents,<br/>builds both indices"]
-  chainPlanner["chain-planner<br/>—— builds chain from description<br/>or shows menu with roles,<br/>assigns models per step,<br/>prefers agents over skills"]
-  confirm["confirm gate<br/>—— registers all nodes<br/>dynamically from chain steps,<br/>you approve the plan"]
+  graphPlanner["graph-planner<br/>—— builds chain from description<br/>or shows menu with roles,<br/>assigns models per step,<br/>prefers agents over skills"]
+  confirm["confirm gate<br/>—— registers all nodes<br/>dynamically from topology nodes,<br/>you approve the plan"]
   execNodes["dynamic nodes<br/>—— registered per step:<br/>• methodology skill: 1 node<br/>• graph skill: N nodes<br/>• agent: 1 node<br/>• fix/plan: 1 node"]
-  graphInternal["graph-internal routing<br/>—— next node in graph,<br/>sink -> next chain step"]
-  microLoop["chain-driven micro-loop<br/>—— work -> review -> fix -> re-review<br/>up to max_iterations"]
+  graphInternal["graph-internal routing<br/>—— next node in graph,<br/>sink -> next topology node"]
+  microLoop["graph-driven micro-loop<br/>—— work -> review -> fix -> re-review<br/>up to max_iterations"]
   human["human_input<br/>—— pauses, asks you"]
   consolidator["consolidator"]
 
@@ -63,7 +63,7 @@ flowchart LR
   chainPlanner --> confirm
   confirm -->|register nodes| execNodes
   execNodes --> graphInternal
-  graphInternal -->|sink reached| nextChainStep["next chain step"]
+  graphInternal -->|sink reached| nextChainStep["next topology node"]
   nextChainStep -->|all steps done| consolidator
   execNodes -->|review finds issues| microLoop
   microLoop -->|fix step| execNodes
@@ -77,15 +77,15 @@ flowchart LR
   class human gate
 ```
 
-The chain-planner checks your request for sequential language ("first...
-then...") and if found, builds a chain from those steps literally, matching
+The graph-planner checks your request for sequential language ("first...
+then...") and if found, builds a topology from those steps literally, matching
 against `agent_index` first then `skill_index`. If no chain language is
 detected, it shows a menu of standard chains (Fast, Safe, Thorough) using
 step roles. Models are assigned per step — if an agent matches, the agent's
 frontmatter `model` is used.
 
 **No hardcoded node types.** coder, security-reviewer, test-auditor do not
-exist. Every execution node is dynamically registered from chain steps or
+exist. Every execution node is dynamically registered from topology nodes or
 skill graphs. The router follows whatever nodes are registered.
 
 ---
@@ -273,7 +273,7 @@ methodology.
 **`wraps:`** `[sre, code-review]` | **`model:`** `haiku`
 
 Dedicated agent for auditing GitOps setups (ArgoCD, Flux). The orchestrator's
-chain-planner prefers this agent over raw `sre` or `code-review` skills when
+graph-planner prefers this agent over raw `sre` or `code-review` skills when
 the request mentions GitOps, Kubernetes, or Git-driven deployments.
 
 ```mermaid
@@ -334,7 +334,7 @@ dependencies:
 |-------|-------------|-------|---------|
 | `gitops-expert` | sre, code-review | haiku | GitOps audit (ArgoCD/Flux) |
 
-The orchestrator's chain-planner checks `agent_index` before `skill_index`.
+The orchestrator's graph-planner checks `agent_index` before `skill_index`.
 When a step matches an agent, the step uses the agent's model and launches
 with the agent's full definition as the prompt.
 
@@ -346,7 +346,7 @@ The orchestrator enforces model assignments per step. When launching a
 sub-agent:
 
 1. If the step is `type: "agent"` → use the agent's `model` from frontmatter
-2. If the step is `type: "skill"` → use the chain-planner's assigned model
+2. If the step is `type: "skill"` → use the graph-planner's assigned model
    (sonnet for plan, haiku for review/analysis, default for code)
 3. If no model is specified → use the orchestrator's own default
 
@@ -357,7 +357,7 @@ This means a single chain can use different models for different steps:
 
 ## Chain composition
 
-The chain-planner builds chains from the `skill_index` and `agent_index`.
+The graph-planner builds chains from the `skill_index` and `agent_index`.
 Example chains:
 
 **Fast:** work → consolidator
@@ -369,9 +369,9 @@ time. If a role cannot be resolved (e.g., no review skill found), that step
 is dropped with a note.
 
 If none of these fit, describe your own chain in the request ("first X then
-Y"). The chain-planner detects it and builds it directly.
+Y"). The graph-planner detects it and builds it directly.
 
-The chain-planner takes descriptions literally. If you say "research then
+The graph-planner takes descriptions literally. If you say "research then
 architect then code-review", it builds exactly those three steps as separate
 skill dispatches — no collapsing, no dedup. It warns about potential overlaps
 but does not reorder or merge. If an agent matches a step (e.g., "audit our

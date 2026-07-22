@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "workflow_id": "<uuid>",
   "created_at": "<ISO-8601>",
   "updated_at": "<ISO-8601>",
@@ -28,6 +28,8 @@
 
   "_graph_routes": {},
   "_dependencies": {},
+  "_extend_context": {},
+  "_extension_generation": {},
 
   "routing": {
     "last_node": "",
