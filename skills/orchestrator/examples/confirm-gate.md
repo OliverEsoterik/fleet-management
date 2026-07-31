@@ -9,18 +9,18 @@ approves, modifies, or aborts before any work starts.
 [GRAPH ENGINE — PLAN CONFIRMATION]
 Request: implement feature X
 
-Selected chain: Fast
-Chain steps:
+Selected topology: Fast
+Topology nodes:
   1. feature-implementation [default] — implement the feature
   2. consolidator [default] — wrap up
 
-Nodes to execute:
+Registered nodes:
   - 1-feature-implementation: implement feature X [methodology skill]
   - consolidator: merge results
 
 Options:
 1) Proceed
-2) Change chain
+2) Change topology
 3) Modify tasks
 4) Add nodes
 5) Abort
@@ -32,14 +32,14 @@ Options:
 [GRAPH ENGINE — PLAN CONFIRMATION]
 Request: research quantum computing
 
-Selected chain: Safe
-Chain steps:
+Selected topology: Safe
+Topology nodes:
   1. research [haiku] — work (graph skill, 10 nodes)
   2. code-review [haiku] — review (methodology skill)
   3. fix [sonnet] — fix issues
   4. consolidator [default] — wrap up
 
-Nodes to execute:
+Registered nodes:
   - 1-research.source-validator: validate sources
   - 1-research.query-refiner: refine queries
   - 1-research.arxiv-researcher: search arxiv
@@ -56,7 +56,7 @@ Nodes to execute:
 
 Options:
 1) Proceed
-2) Change chain
+2) Change topology
 3) Modify tasks
 4) Add nodes
 5) Abort
@@ -68,19 +68,19 @@ Options:
 [GRAPH ENGINE — PLAN CONFIRMATION]
 Request: audit our GitOps setup
 
-Selected chain: Fast
-Chain steps:
+Selected topology: Fast
+Topology nodes:
   1. gitops-expert [haiku] — full GitOps audit
      > Agent: agents/gitops-expert.md (wraps sre, code-review)
   2. consolidator [default] — wrap up
 
-Nodes to execute:
+Registered nodes:
   - 1-gitops-expert: run gitops-expert agent [haiku]
   - consolidator: merge results
 
 Options:
 1) Proceed
-2) Change chain
+2) Change topology
 3) Modify tasks
 4) Add nodes
 5) Abort
@@ -88,7 +88,7 @@ Options:
 
 ## Routing
 
-- "proceed" -> first ready node
-- "change chain" -> reset `selected_chain = -1`, route to `chain-planner`
+- "proceed" -> first set of ready nodes
+- "change chain" -> reset `selected_topology = -1`, route to `graph-planner`
 - "modify tasks" / "add nodes" -> route to `human_input`
 - "abort" -> consolidator

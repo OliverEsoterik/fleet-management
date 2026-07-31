@@ -1,0 +1,387 @@
+% ============================================================
+% Professional Investment Research Report Template
+% Institutional-grade layout à la Goldman Sachs / JPMorgan
+% ============================================================
+\documentclass[11pt,a4paper]{report}
+
+% --- Encoding ---
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+% --- Math ---
+\usepackage{amsmath,amssymb}
+
+% --- Graphics and color ---
+\usepackage{graphicx}
+\usepackage{xcolor}
+\definecolor{gsblue}{RGB}{0,82,164}
+\definecolor{gslightblue}{RGB}{235,245,255}
+\definecolor{darkgray}{RGB}{70,70,70}
+\definecolor{mediumgray}{RGB}{150,150,150}
+\definecolor{redalert}{RGB}{180,40,40}
+\definecolor{greenpositive}{RGB}{0,120,50}
+
+% --- Page layout ---
+\usepackage{geometry}
+\geometry{margin=1in, top=0.8in, bottom=0.8in}
+
+% --- Headers and footers ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\textcolor{gsblue}{\small\textbf{Investment Research}}}
+\fancyhead[R]{\textcolor{darkgray}{\small COMPANY-TICKER ~~$\vert$~~ REPORT-DATE}}
+\fancyfoot[C]{\thepage}
+\fancyfoot[L]{\textcolor{darkgray}{\small \textbf{CONFIDENTIAL}}}
+\fancyfoot[R]{\textcolor{darkgray}{\small COMPANY-TICKER}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0.5pt}
+\setlength{\headheight}{14pt}
+
+% --- Hyperlinks ---
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=gsblue,urlcolor=gsblue,citecolor=gsblue}
+
+% --- Captions ---
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+
+% --- Tables ---
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% --- Lists ---
+\usepackage{enumitem}
+
+% --- Float ---
+\usepackage{float}
+
+% --- Section formatting ---
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{gsblue}}
+  {\vspace{-0.5in}\chaptertitlename\ \thechapter}{20pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
+\titleformat{\section}
+  {\normalfont\Large\bfseries\color{gsblue}}
+  {\thesection}{1em}{}
+\titleformat{\subsection}
+  {\normalfont\large\bfseries\color{darkgray}}
+  {\thesubsection}{1em}{}
+
+% --- Custom commands ---
+\newcommand{\highlightbox}[2][gslightblue]{%
+  \begin{center}
+    \colorbox{#1}{\begin{minipage}{0.92\textwidth}\vspace{8pt}#2\vspace{8pt}\end{minipage}}
+  \end{center}
+}
+\newcommand{\source}[1]{\hfill\small\textit{#1}}
+
+\begin{document}
+
+% ============================================================
+% COVER PAGE
+% ============================================================
+\thispagestyle{empty}
+\begin{center}
+  \vspace*{2cm}
+  {\Huge\bfseries\color{gsblue} COMPANY-NAME}\\[10pt]
+  {\Large\bfseries RATING~~$\vert$~~12-Month Price Target: \$PRICE-TARGET}\\[20pt]
+  {\large Investment Research Report}\\[6pt]
+  {\normalsize\color{darkgray} REPORT-DATE}\\[4pt]
+  {\normalsize\color{darkgray} Sector: SECTOR~~$\vert$~~Industry: INDUSTRY}\\[30pt]
+  
+  \hrulefill
+  \vspace{15pt}
+  
+  \begin{tabularx}{\textwidth}{lX}
+    \toprule
+    \textbf{Key Data} & \textbf{Value} \\
+    \midrule
+    Current Price & \$CURRENT-PRICE \\
+    Price Target (12-month) & \$PRICE-TARGET \\
+    Upside / Downside & UPSIDE-PCT \\
+    Rating & \textbf{RATING} \\
+    Market Cap & \$MARKET-CAP \\
+    Enterprise Value & \$ENTERPRISE-VALUE \\
+    52-Week Range & \$52W-LOW -- \$52W-HIGH \\
+     EV/EBITDA (TTM) & \textbf{EV-EBITDA-MULTIPLE} \\
+    P/E (TTM) / Forward P/E & PE-TTM / PE-FWD \\
+    Consensus Target & \$CONSENSUS-TARGET (NUM-ANALYSTS analysts) \\
+    \bottomrule
+  \end{tabularx}
+  \vspace{5pt}
+  {\footnotesize\color{darkgray} Sources: Price [Market data -- NASDAQ, July 27, 2026]. EV/EBITDA [yfinance (market data + filings) -- TTM, July 2026]. Consensus [yfinance (analyst consensus) -- NUM-ANALYSTS analysts, July 2026].}
+  
+  \vspace{20pt}
+  \hrulefill
+  \vspace{10pt}
+  {\small\color{darkgray} \textbf{Disclosures:} This report is produced for informational purposes only and does not constitute investment advice. Past performance is not indicative of future results.}
+\end{center}
+
+\newpage
+\tableofcontents
+\newpage
+
+% ============================================================
+% 1. EXECUTIVE SUMMARY
+% ============================================================
+\chapter{Executive Summary \& Investment Thesis}
+
+\highlightbox{%
+\textbf{Core Thesis:} CORE-THESIS
+}
+
+EXECUTIVE-SUMMARY-BODY
+
+\subsection*{Key Catalysts}
+\begin{itemize}[nosep]
+  CATALYSTS-LIST
+\end{itemize}
+
+\subsection*{Key Risks to Thesis}
+\begin{itemize}[nosep]
+  RISKS-LIST
+\end{itemize}
+
+% ============================================================
+% 2. BUSINESS OVERVIEW
+% ============================================================
+\chapter{Business Overview}
+
+\section{Company Description}
+COMPANY-DESCRIPTION
+
+\section{Revenue Model}
+REVENUE-MODEL
+
+\section{Competitive Advantage}
+COMPETITIVE-ADVANTAGE
+
+\section{Industry Dynamics}
+\begin{table}[H]
+\centering
+\caption{Porter's Five Forces Analysis}
+\begin{tabularx}{\textwidth}{lC{2.5cm}X}
+\toprule
+\textbf{Force} & \textbf{Strength} & \textbf{Assessment} \\
+\midrule
+PORTERS-TABLE-ROWS
+\bottomrule
+\end{tabularx}
+\source{Source: Industry research}
+\end{table}
+
+% ============================================================
+% 3. FINANCIAL ANALYSIS
+% ============================================================
+\chapter{Financial Analysis}
+
+\section{Revenue Trajectory}
+\textbf{Current (TTM):} TTM-REVENUE, growing TTM-REVENUE-GROWTH\% [Source: yfinance (company filings) -- TTM financials, July 2026]
+
+DATA-STALENESS-NOTE
+
+\begin{table}[H]
+\centering
+\caption{Annual Revenue History}
+\begin{tabularx}{\textwidth}{lC{2.5cm}C{2.5cm}X}
+\toprule
+\textbf{Year} & \textbf{Revenue} & \textbf{Growth} & \textbf{Source} \\
+\midrule
+ANNUAL-REVENUE-ROWS
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Margins \& Profitability}
+\begin{table}[H]
+\centering
+\caption{Margin Analysis}
+\begin{tabularx}{\textwidth}{lC{2.5cm}C{2.5cm}}
+\toprule
+\textbf{Metric} & \textbf{Latest Annual} & \textbf{TTM} \\
+\midrule
+MARGIN-ROWS
+\bottomrule
+\end{tabularx}
+\source{Annual: [Company filings (10-K)]. TTM: [yfinance (company filings) -- TTM margins, July 2026]}
+\end{table}
+
+MARGIN-ANALYSIS
+
+\section{Balance Sheet}
+BALANCE-SHEET-SUMMARY
+
+\section{Cash Flow}
+\begin{table}[H]
+\centering
+\caption{Cash Flow Summary}
+\begin{tabularx}{\textwidth}{lC{2.5cm}C{2.5cm}}
+\toprule
+\textbf{Metric} & \textbf{Latest Annual} & \textbf{TTM} \\
+\midrule
+CASHFLOW-ROWS
+\bottomrule
+\end{tabularx}
+\source{Annual: [Company filings (10-K)]. TTM: [yfinance (company filings) -- TTM cash flow, July 2026]}
+\end{table}
+
+CASHFLOW-ANALYSIS
+
+\section{Forward Estimates}
+\begin{table}[H]
+\centering
+\caption{Forward Estimates}
+\begin{tabularx}{\textwidth}{lC{2.5cm}C{2.5cm}}
+\toprule
+\textbf{Metric} & \textbf{FY+1E} & \textbf{FY+2E} \\
+\midrule
+FORWARD-ESTIMATE-ROWS
+\bottomrule
+\end{tabularx}
+\source{Derived from TTM run-rate, HBM growth assumptions, industry context}
+\end{table}
+
+% ============================================================
+% 4. VALUATION
+% ============================================================
+\chapter{Valuation}
+
+\section{EV/EBITDA Analysis}
+\textbf{EV-EBITDA-MULTIPLE} [Source: yfinance (market data + filings) -- TTM multiples, July 2026] -- computed from \$ENTERPRISE-VALUE EV / TTM-EBITDA TTM EBITDA.
+
+EV-EBITDA-NOTE
+
+\section{Comparable Company Analysis}
+\begin{table}[H]
+\centering
+\caption{Peer Comparison}
+\begin{tabularx}{\textwidth}{lC{2cm}C{2cm}C{2.5cm}}
+\toprule
+\textbf{Company} & \textbf{EV/EBITDA} & \textbf{P/E (Fwd)} & \textbf{Rev Growth} \\
+\midrule
+COMP-TABLE-ROWS
+\bottomrule
+\end{tabularx}
+\source{Peer data: [Company filings, peer 10-Ks, FY2025]. MU: [yfinance, July 2026]}
+\end{table}
+
+\section{Scenario Analysis \& Price Target}
+\begin{table}[H]
+\centering
+\caption{Scenario Analysis}
+\begin{tabularx}{\textwidth}{lC{2cm}C{2.5cm}C{2.5cm}C{2.5cm}}
+\toprule
+\textbf{Scenario} & \textbf{Prob.} & \textbf{EPS} & \textbf{Multiple} & \textbf{Target} \\
+\midrule
+SCENARIO-ROWS
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[H]
+\centering
+\caption{Price Target Derivation}
+\begin{tabularx}{\textwidth}{lC{2.5cm}C{2.5cm}}
+\toprule
+\textbf{Methodology} & \textbf{Weight} & \textbf{Implied Value} \\
+\midrule
+PRICE-TARGET-ROWS
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\highlightbox{%
+\textbf{Price Target: \$PRICE-TARGET} ~~$\vert$~~ \textbf{Upside: UPSIDE-PCT} ~~$\vert$~~ \textbf{Rating: RATING}
+}
+
+\section{Consensus View}
+CONSENSUS-VIEW
+
+% ============================================================
+% 5. RISK FACTORS
+% ============================================================
+\chapter{Risk Factors}
+
+\begin{table}[H]
+\centering
+\caption{Risk Assessment Matrix}
+\begin{tabularx}{\textwidth}{lC{2cm}C{2.5cm}X}
+\toprule
+\textbf{Risk} & \textbf{Severity} & \textbf{Probability} & \textbf{Description} \\
+\midrule
+RISK-MATRIX-ROWS
+\bottomrule
+\end{tabularx}
+\source{Source: Industry research, market analysis, company filings}
+\end{table}
+
+\subsection*{Antifragility Assessment}
+ANTIFRAGILITY-ASSESSMENT
+
+% ============================================================
+% 6. RECOMMENDATION
+% ============================================================
+\chapter{Recommendation}
+
+\begin{center}
+  \vspace{10pt}
+  {\Large\bfseries\color{gsblue} RATING}\\[6pt]
+  {\large Price Target: \$PRICE-TARGET~~$\vert$~~Upside: UPSIDE-PCT~~$\vert$~~12 Months}
+  \vspace{10pt}
+\end{center}
+
+RECOMMENDATION-BODY
+
+\subsection*{Catalysts to Watch}
+\begin{itemize}[nosep]
+  WATCH-CATALYSTS
+\end{itemize}
+
+\subsection*{Key Risks to Monitor}
+\begin{itemize}[nosep]
+  WATCH-RISKS
+\end{itemize}
+
+% ============================================================
+% 7. APPENDIX
+% ============================================================
+\chapter{Appendix}
+
+\section{Key Financial Ratios (TTM)}
+\begin{table}[H]
+\centering
+\caption{Key Financial Ratios}
+\begin{tabularx}{\textwidth}{lC{3cm}X}
+\toprule
+\textbf{Ratio} & \textbf{Value} & \textbf{Source} \\
+\midrule
+KEY-RATIOS-ROWS
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Sources}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Source} & \textbf{Description} \\
+\midrule
+SOURCES-TABLE-ROWS
+\bottomrule
+\end{tabularx}
+
+\vspace{10pt}
+\noindent\textbf{Methodology:} METHODOLOGY-NOTE
+
+\vspace{10pt}
+\noindent\textbf{Disclosures:}
+\begin{quote}\small
+This report is produced for informational purposes only and does not constitute investment advice. The analyst certifies that the views expressed reflect their personal views about the subject company. Past performance is not indicative of future results. This report is generated by an AI agent and should not be the sole basis for investment decisions. All data as of REPORT-DATE.
+\end{quote}
+
+\end{document}

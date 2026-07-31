@@ -60,8 +60,8 @@ fleet-management/
 Every task goes through `/skill:orchestrator <task>`. The orchestrator:
 1. Scans `skills/` for `SKILL.md` files (reads frontmatter `name`, `description`, graph nodes, `produces` outputs)
 2. Builds a skill index and matches the request to relevant skills
-3. Runs the chain-planner node — presents you with chain proposals (Fast/Safe/Thorough/Custom) and you pick one
-4. Runs the confirm gate — shows the execution plan for the selected chain, you approve
+3. Runs the graph-planner node — designs a custom topology (nodes, edges, parallel paths) from available skills/agents
+4. Runs the confirm gate — shows the proposed topology, you approve
 5. Routes through the state machine: launches sub-agents per node, waits for completions, consolidates
 6. Never executes work directly — every task goes to a sub-agent
 

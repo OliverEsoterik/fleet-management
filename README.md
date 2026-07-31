@@ -2,7 +2,7 @@
 
 Multi-agent orchestration system using the **graph engine** — a data-driven
 state machine that routes work through dynamically registered nodes, the
-**chain-planner** (which builds skill chains from roles or descriptions),
+**graph-planner** (which builds skill chains from roles or descriptions),
 and local human-in-the-loop interaction.
 
 **The orchestrator is a generic graph router, not a software-engineering
@@ -23,30 +23,33 @@ routes through the appropriate chain.
 /skill:orchestrator <task description>
 ```
 
-The orchestrator chains skills and agents together based on your request.
-Each step in the chain is a separate dispatch with its own model.
+The orchestrator designs a graph topology based on your request.
+Each node in the topology is a separate dispatch with its own model.
 
-**Describe your own chain:** Say "research transformer architectures, then
-architect a solution, then review the plan." The chain-planner builds:
+**Describe your own topology:** Say "research transformer architectures,
+searching papers, repos, and blogs in parallel, then synthesize and verify."
+The graph-planner builds:
 ```
-research [haiku] → architect [sonnet] → code-review [haiku] → consolidator
+research-arxiv [haiku] ─┐
+research-github [haiku] ─┼──→ synthesize [sonnet] → verify [haiku] → consolidator
+research-web [haiku]   ─┘
 ```
-Three separate dispatches, each with a different model. No collapsing, no dedup.
+Independent research nodes run in parallel. Edges only where data actually
+flows. Model tiering: cheap models for fan-out, expensive for synthesis.
 
-**Or use a standard chain:** Say "research quantum computing" and pick Fast
-(direct), Safe (work + review + fix), or Thorough (plan + work + review + fix).
-Step roles are resolved to actual skills at build time.
+**Or use standard topologies:** Say "research quantum computing" and choose
+Diamond (fan-out + merge), Diamond + Verifier, or Sequential. Each topology
+shows nodes, edges, shape, and cost estimate before you approve.
 
 **The full flow:**
 1. Scans all skills and agents
-2. Chain-planner builds a chain from your description or shows a menu
-3. Each step gets a model (agent model or default)
-4. Confirm gate shows the chain, you approve
-5. Confirm registers nodes dynamically (methodology skills get one node,
-   graph skills register all their nodes)
-6. Router launches ready nodes, follows graph-internal routing, progresses
-   through chain steps
-7. Chain-driven micro-loops handle work -> review -> fix cycles
+2. Graph-planner designs a topology from your description or designs 2-3 proposals
+3. Each node gets a model and input/output contract
+4. Confirm gate shows the topology with nodes, edges, and cost, you approve
+5. Confirm activates nodes, computing `_dependencies` from topology edges
+6. Router finds all ready nodes (dependencies satisfied), launches fan-out in parallel
+7. Fan-in barriers hold merge nodes until all upstream nodes complete
+8. Graph-driven micro-loops handle verify -> fix -> verify cycles
 
 ### Use a skill directly
 
@@ -73,7 +76,7 @@ Examples:
 
 Agents can declare a preferred model in their frontmatter. When invoked via
 `run as`, that model is used. When the orchestrator selects an agent for a
-chain step, it uses the agent's model.
+topology node, it uses the agent's model.
 
 ---
 
@@ -95,7 +98,7 @@ Skill types:
 
 | Skill | Type | Purpose |
 |-------|------|---------|
-| orchestrator | Graph (meta) | Master state machine — discovers skills + agents, chain-planner, routes through dynamically registered nodes |
+| orchestrator | Graph (meta) | Master state machine — discovers skills + agents, graph-planner, routes through dynamically registered nodes |
 | academic-writer | Methodology | Professional academic writing and editing pipeline |
 | architect | Methodology | Architectural design with codebase analysis, ADRs, and plans |
 | better-products-habits | Methodology | Hiten Shah's 5 habits for product building |
@@ -154,11 +157,11 @@ Key concepts:
   get one execution node. Graph skills register all their internal nodes.
   Agents get one execution node with their full definition.
 - **Router** — pure function that scans all registered nodes for "ready"
-  status, follows graph-internal routing, and progresses through chain steps.
-- **Chain-driven micro-loops** — work -> review -> fix cycles are encoded in
-  chain step types, not in hardcoded node names.
+  status, follows graph-internal routing, and progresses through topology nodes.
+- **Graph-driven micro-loops** — verify -> fix -> verify cycles are encoded in
+  cycle edges, not in hardcoded node names.
 - **Confirm gate** — shows the chain with model assignments, you approve/modify
-- **Model routing** — the chain-planner assigns models per step, the
+- **Model routing** — the graph-planner assigns models per step, the
   orchestrator enforces them when launching sub-agents. Agent models take
   precedence over defaults.
 
@@ -192,7 +195,7 @@ The orchestrator reads the `tools` field and maps it to the appropriate
 subagent type at launch. If the agent needs web search or external APIs,
 include `WebSearch` or `WebFetch` in `tools`.
 
-The orchestrator's chain-planner prefers this agent over raw skills when
+The orchestrator's graph-planner prefers this agent over raw skills when
 a request matches its description or its wrapped skills.
 
 ## Updating this README

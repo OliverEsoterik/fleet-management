@@ -1,77 +1,88 @@
-# Chain Proposal — Menu Example
+# Graph Topology Proposal — Menu Example
 
-When the user's request has no sequential language, the chain-planner shows
-a menu of standard chains. Step roles (work, review, plan) are resolved to
-actual skills from the skill_index.
+When the user's request has no sequential/parallel language, the graph-planner designs 2-3 topology proposals. Each proposal shows nodes, edges, topology shape, and cost estimate.
 
 ## Example: Research request
 
 ```
-[GRAPH ENGINE — CHAIN PROPOSAL]
+[GRAPH ENGINE — TOPOLOGY PROPOSALS]
 Request: research quantum computing error correction
 
-Available chains:
+Topology A: Diamond (recommended)
+Description: Fan-out 3 research sources -> synthesize
+Nodes:
+  - research-arxiv [haiku]: search arXiv
+  - research-github [haiku]: search GitHub
+  - research-web [haiku]: search web
+  - synthesize [sonnet]: merge findings
+Edges: 3 parallel -> 1 merge
+Cost: ~8K-12K tokens
 
-1) Fast — Direct research, no audit
-   Steps:
-     a. research [haiku] — work
-     b. consolidator [default]
+Topology B: Diamond + Verifier
+Description: Same as A, but with adversarial verify before output
+Nodes:
+  - research-arxiv [haiku], research-github [haiku], research-web [haiku]
+  - synthesize [sonnet]
+  - verify [haiku]: check each claim
+  - consolidator
+Edges: 3 parallel -> merge -> verify -> output
+Cost: ~10K-15K tokens
 
-2) Safe — Research + review
-   Steps:
-     a. research [haiku] — work
-     b. code-review [haiku] — review (resolved from skill_index)
-     c. fix [sonnet] — fix issues from review
-     d. consolidator [default]
+Topology C: Sequential
+Description: Single research pass, simpler but slower
+Nodes:
+  - research [haiku]: search all sources sequentially
+  - consolidator
+Edges: research -> output
+Cost: ~3K-5K tokens
 
-3) Thorough — Plan + research + review + fix
-   Steps:
-     a. architect [sonnet] — plan (resolved from skill_index)
-     b. research [haiku] — work
-     c. code-review [haiku] — review
-     d. fix [sonnet] — fix
-     e. consolidator [default]
-
-Choose a chain (1-3):
+Choose topology (A/B/C) or describe modifications:
 ```
 
 ## Example: Code feature request
 
 ```
-[GRAPH ENGINE — CHAIN PROPOSAL]
+[GRAPH ENGINE — TOPOLOGY PROPOSALS]
 Request: implement a rate limiter for the API
 
-Available chains:
+Topology A: Sequential (recommended)
+Description: Plan -> implement -> review -> fix
+Nodes:
+  - plan [sonnet]: design architecture
+  - implement [default]: write code
+  - code-review [haiku]: review implementation
+  - fix [sonnet]: fix review issues
+  - consolidator
+Edges: sequential chain
+Cost: ~15K-25K tokens
 
-1) Fast — Direct implementation, no audit
-   Steps:
-     a. feature-implementation [default] — work
-     b. consolidator [default]
+Topology B: Diamond + Verifier
+Description: Implement + parallel security audit -> fix -> verify
+Nodes:
+  - plan [sonnet]: design architecture
+  - implement [default]: write code
+  - security-audit [haiku]: parallel security review
+  - fix [sonnet]: fix issues
+  - verify [haiku]: verify fixes
+  - consolidator
+Edges: plan -> (implement, audit) -> fix -> verify -> output
+Topology: diamond with verifier chain
+Cost: ~20K-35K tokens
 
-2) Safe — Implement + code review
-   Steps:
-     a. feature-implementation [default] — work
-     b. code-review [haiku] — review
-     c. fix [sonnet] — fix
-     d. consolidator [default]
+Topology C: Fast
+Description: Direct implementation, no review
+Nodes:
+  - implement [default]: write code
+  - consolidator
+Cost: ~5K-10K tokens
 
-3) Thorough — Plan + implement + sre + code review + fix
-   Steps:
-     a. architect [sonnet] — plan
-     b. feature-implementation [default] — work
-     c. sre [haiku] — review (security audit)
-     d. code-review [haiku] — review
-     e. fix [sonnet] — fix
-     f. consolidator [default]
-
-Choose a chain (1-3):
+Choose topology (A/B/C) or describe modifications:
 ```
 
 ## Key rules
 
-- Chains are built dynamically from the skill and agent indices
-- Step roles (work, review, plan, fix) are resolved to actual skills
-- If a role cannot be resolved (e.g., no review skill found), that step is dropped
-- If an agent matches the request, the chain uses the agent for the `work` role
-- No "Custom" option — if none of these fit, the user rephrases with
-  "first... then..."
+- Topologies are built dynamically from the skill and agent indices
+- Each topology shows: nodes, edges, topology shape, and cost estimate
+- The recommended topology is marked (usually diamond or diamond+verifier)
+- Model tiering is applied per node (fan-out gets cheap, synthesis gets expensive)
+- No "Custom" option — if none fit, user describes what they want

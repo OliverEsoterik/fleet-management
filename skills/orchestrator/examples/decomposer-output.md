@@ -1,7 +1,7 @@
 # Decomposer Output Example
 
 When the decomposer finishes, it writes the following to `work/graph/state.json`.
-This is the input the chain-planner reads.
+This is the input the graph-planner reads.
 
 ## Fields written
 
@@ -58,7 +58,7 @@ This is the input the chain-planner reads.
   ],
   "routing": {
     "last_node": "decomposer",
-    "next_node": "chain-planner",
+    "next_node": "graph-planner",
     "reason": "decomposition complete"
   }
 }
