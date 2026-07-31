@@ -1,0 +1,82 @@
+[
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Blackrock Inc.",
+    "pctHeld": 0.0913,
+    "Shares": 103147586,
+    "Value": 92618278658,
+    "pctChange": 0.024300002
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Vanguard Capital Management LLC",
+    "pctHeld": 0.0648,
+    "Shares": 73137283,
+    "Value": 65671427901,
+    "pctChange": 1.0
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "State Street Corporation",
+    "pctHeld": 0.0463,
+    "Shares": 52239483,
+    "Value": 46906875682,
+    "pctChange": -0.0097
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Capital World Investors",
+    "pctHeld": 0.0372,
+    "Shares": 42054392,
+    "Value": 37761478945,
+    "pctChange": -0.278
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Invesco Ltd.",
+    "pctHeld": 0.031600002,
+    "Shares": 35682439,
+    "Value": 32039975017,
+    "pctChange": 0.0178
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "FMR, LLC",
+    "pctHeld": 0.028399998,
+    "Shares": 32054565,
+    "Value": 28782434456,
+    "pctChange": -0.19049999
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Geode Capital Management, LLC",
+    "pctHeld": 0.024300002,
+    "Shares": 27432757,
+    "Value": 24632420696,
+    "pctChange": 0.0552
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Vanguard Portfolio Management LLC",
+    "pctHeld": 0.020399999,
+    "Shares": 23024614,
+    "Value": 20674261009,
+    "pctChange": 1.0
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Primecap Management Company",
+    "pctHeld": 0.0194,
+    "Shares": 21874204,
+    "Value": 19641284881,
+    "pctChange": -0.1178
+  },
+  {
+    "Date Reported": "2026-03-31",
+    "Holder": "Morgan Stanley",
+    "pctHeld": 0.0149,
+    "Shares": 16842006,
+    "Value": 15122773739,
+    "pctChange": 0.0272
+  }
+]

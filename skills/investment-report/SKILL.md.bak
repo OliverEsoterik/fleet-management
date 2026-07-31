@@ -1,0 +1,956 @@
+---
+name: investment-report
+description: >
+  Produces professional-grade investment research reports à la JPMorgan/Goldman
+  Sachs. Gathers comprehensive financial data, macro-economic context, and
+  industry research, then performs financial analysis, valuation modeling (DCF,
+  relative multiples, scenario analysis), and risk assessment — all synthesized
+  into a structured institutional-quality report with investment thesis,
+  business overview, financial analysis, valuation, and risk factors.
+skills: [stock-info, lyn-alden-dcf, peter-lynch, nassim-nicholas-taleb]
+tools: Read, Write, Bash, Agent
+---
+
+# Investment Research Report — Institutional-Grade
+
+## Overview
+
+This skill produces a full-blown investment research report in the style of
+JPMorgan, Goldman Sachs, Morgan Stanley, or other bulge-bracket banks. The
+report is structured, data-driven, and professionally formatted with the
+following components:
+
+- **Investment Thesis** — Clear core argument explaining why the asset will
+  outperform or underperform
+- **Business Overview** — Company model, revenue streams, competitive advantage,
+  industry dynamics, and macro context
+- **Financial Analysis** — Historical performance, balance sheet health, and
+  future earnings forecasts
+- **Valuation Model** — DCF, relative multiples, and scenario assumptions
+- **Risk Factors** — Key downside risks, regulatory challenges, and market threats
+
+**When to use:** When a user asks for an investment research report, stock
+analysis, company analysis, or buy/sell recommendation with professional
+institutional-grade presentation.
+
+**Announce at start:** "I'm using the investment-report skill to produce a professional investment research report on [ticker]."
+
+> **Data source:** This skill uses the `stock-info` skill for financial data.
+> Fetch data via:
+> - `bash skills/stock-info/tools/get-all.sh <ticker>` — all financials in one JSON
+> - `bash skills/stock-info/tools/get-info.sh <ticker>` — price, P/E, PEG, beta, market cap
+> - `bash skills/stock-info/tools/get-income-statement.sh <ticker>` — revenue, EPS, margins
+> - `bash skills/stock-info/tools/get-balance-sheet.sh <ticker>` — cash, debt, equity
+> - `bash skills/stock-info/tools/get-cash-flow.sh <ticker>` — FCF, capex, buybacks
+> - `bash skills/stock-info/tools/get-price-history.sh <ticker>` — historical prices
+> - `bash skills/stock-info/tools/get-insider-transactions.sh <ticker>` — insider trades
+> - `bash skills/stock-info/tools/get-institutional-holders.sh <ticker>` — institutional holders
+> - `bash skills/stock-info/tools/get-earnings-history.sh <ticker>` — earnings surprise history
+> - `bash skills/stock-info/tools/get-calendar.sh <ticker>` — upcoming events
+
+---
+
+## ⚠️ CRITICAL: Data Integrity Rules (MANDATORY)
+
+Every node in this skill MUST follow these rules. Violating them produces
+wrong reports. This is the single most important section of this skill.
+
+### Rule 1: TTM data from `info.json` is the PRIMARY source for current valuation
+
+The `info.json` file (from `get-info.sh`) contains **trailing twelve months
+(TTM)** data from the yfinance `info` dict. This is the most current data
+available and takes precedence for ALL valuation calculations.
+
+The income statement, balance sheet, and cash flow JSON files (from
+`get-income-statement.sh`, `get-balance-sheet.sh`, `get-cash-flow.sh`) contain
+**annual fiscal year data** which may be STALE — especially if the last fiscal
+year ended before a major business event (e.g., a product ramp, acquisition,
+or cyclical shift).
+
+**Always extract these fields from `info.json` for current-period calculations:**
+
+| Field | What it is | Used for |
+|-------|-----------|----------|
+| `ebitda` | TTM EBITDA | EV/EBITDA calculation |
+| `enterpriseToEbitda` | EV/EBITDA computed by yfinance | Cross-check your own calculation |
+| `enterpriseValue` | Current enterprise value | EV/EBITDA, EV/Revenue |
+| `marketCap` | Current market cap | All per-share calculations |
+| `currentPrice` | Current stock price | Upside/downside |
+| `trailingPE` | TTM P/E ratio | P/E analysis |
+| `forwardPE` | Forward P/E (next fiscal year) | Forward valuation |
+| `priceToSalesTrailing12Months` | TTM P/S ratio | P/S analysis |
+| `operatingCashflow` | TTM operating cash flow | Cash flow analysis |
+| `freeCashflow` | TTM free cash flow | FCF analysis |
+| `revenueGrowth` | TTM revenue growth (decimal) | Growth analysis |
+| `earningsGrowth` | TTM earnings growth (decimal) | Growth analysis |
+| `grossMargins` | TTM gross margin (decimal) | Margin analysis |
+| `operatingMargins` | TTM operating margin (decimal) | Margin analysis |
+| `profitMargins` | TTM profit margin (decimal) | Margin analysis |
+| `ebitdaMargins` | TTM EBITDA margin (decimal) | Margin analysis |
+| `totalRevenue` | TTM total revenue | Revenue analysis |
+
+### Rule 2: Always compute EV/EBITDA yourself AND cross-check
+
+You MUST compute EV/EBITDA two ways:
+
+```python
+# Method 1: From raw data
+ev = info["enterpriseValue"]
+ebitda = info["ebitda"]
+ev_ebitda_computed = ev / ebitda
+
+# Method 2: From yfinance's pre-computed field
+ev_ebitda_yfinance = info["enterpriseToEbitda"]
+
+# Cross-check: they must match within 5%
+if abs(ev_ebitda_computed - ev_ebitda_yfinance) / ev_ebitda_yfinance > 0.05:
+    # FLAG THIS — data inconsistency
+    print(f"WARNING: EV/EBITDA mismatch: computed={ev_ebitda_computed:.1f}x vs yfinance={ev_ebitda_yfinance:.1f}x")
+```
+
+If they don't match, use the `enterpriseToEbitda` field from yfinance as the
+authoritative value and investigate the discrepancy.
+
+### Rule 3: Sanity-check every computed metric
+
+| Metric | Sanity Check | What to do if it fails |
+|--------|-------------|----------------------|
+| **EV/EBITDA** | Must be between 1x and 100x for operating companies | Re-check data sources |
+| **P/E (trailing)** | Must be positive and between 3x and 100x (unless negative earnings) | Re-check |
+| **P/S** | Must be between 0.1x and 50x | Re-check |
+| **Gross Margin** | Must be between 0% and 100% | Re-check |
+| **Operating Margin** | Must be between -100% and 100% | Re-check |
+| **Revenue Growth** | Must be between -100% and 10,000% | Re-check |
+| **EBITDA** | Must be less than or equal to revenue (EBITDA cannot exceed total revenue) | **CRITICAL FAILURE** — if EBITDA > revenue, the data is wrong. Use `enterpriseToEbitda` and `ebitdaMargins` from info.json instead. |
+| **FCF** | Must be less than or equal to operating cash flow | Re-check |
+| **Operating Cash Flow** | For a profitable company, OCF should be positive and within a reasonable range of net income | If OCF is negative but net income is positive, check for working capital changes |
+
+### Rule 4: When annual data and TTM data disagree, ALWAYS use TTM
+
+The income statement JSON contains ANNUAL data for the last completed fiscal
+year. The info dict contains TTM data. If they differ significantly (e.g.,
+FY2025 revenue is $37B but TTM revenue is $90B), the TTM data is correct
+and the annual data is stale.
+
+**Document the discrepancy explicitly in the report:**
+```
+**Note on data:** The FY2025 annual income statement ($37.4B revenue) reflects
+the period ending August 2025, before the [event] drove revenue to $90B+ TTM.
+All current-period valuation uses TTM data.
+```
+
+### Rule 5: Never use FY annual data for EV/EBITDA or current-period multiples
+
+EV/EBITDA must use TTM EBITDA from `info.json`. Using FY annual EBITDA from
+the income statement for a company with rapidly changing earnings will produce
+wildly wrong results (e.g., 55x instead of 15x).
+
+### Rule 6: Cross-check with the `all-data.json` file
+
+The `all-data.json` file (from `get-all.sh`) merges all data sources into one
+document. Use it to verify consistency:
+- Compare `all-data.json["info"]["ebitda"]` with the standalone `info.json`
+- Compare `all-data.json["income_statement"]` with the standalone `income.json`
+- If any field differs, something went wrong during fetch — re-fetch
+
+### Rule 7: CITE EVERY NUMBER — every data point must have a source annotation
+
+Every number, metric, or claim in every output file and in the final report
+MUST have its source cited. This is non-negotiable. A number without a source
+is a fabrication.
+
+**Source citation format:**
+```
+[Source: info.json — ebitda field]
+[Source: income.json — FY2025, Total Revenue]
+[Source: earnings.json — most recent quarter, Reported EPS]
+[Source: WebSearch — URL or description of source]
+[Source: Company filing — 10-K FY2025]
+```
+
+**Which sources to cite for what:**
+
+| Data type | Source to cite | How to cite |
+|-----------|---------------|-------------|
+| Current price, market cap, P/E, EV/EBITDA, etc. | `info.json` (from `get-info.sh` via yfinance) | `[Source: info.json — yfinance TTM data]` |
+| Annual revenue, net income, EPS by year | `income.json` (from `get-income-statement.sh` via yfinance) | `[Source: income.json — yfinance annual data, FY20XX]` |
+| Balance sheet items | `balance.json` (from `get-balance-sheet.sh` via yfinance) | `[Source: balance.json — yfinance annual data, FY20XX]` |
+| Cash flow items | `cashflow.json` (from `get-cash-flow.sh` via yfinance) | `[Source: cashflow.json — yfinance annual data, FY20XX]` |
+| Historical prices | `prices.csv` (from `get-price-history.sh` via yfinance) | `[Source: prices.csv — yfinance historical prices]` |
+| Insider transactions | `insiders.json` (from `get-insider-transactions.sh` via yfinance) | `[Source: insiders.json — yfinance insider transactions]` |
+| Institutional holders | `institutions.json` (from `get-institutional-holders.sh` via yfinance) | `[Source: institutions.json — yfinance institutional holders]` |
+| Earnings surprises | `earnings.json` (from `get-earnings-history.sh` via yfinance) | `[Source: earnings.json — yfinance earnings history]` |
+| Upcoming events | `calendar.json` (from `get-calendar.sh` via yfinance) | `[Source: calendar.json — yfinance calendar]` |
+| Macro economic data | Web search results | `[Source: WebSearch — <source name/URL, date retrieved>]` |
+| Industry data | Web search results | `[Source: WebSearch — <source name/URL, date retrieved>]` |
+| Peer company multiples | General knowledge or WebSearch | `[Source: WebSearch — <source name/URL, date retrieved>]` or `[Source: General knowledge — based on publicly available financial data]` |
+
+**How to cite in the output files:**
+
+In the stock-data.md file, annotate every table and every section:
+```markdown
+## Key Financial Metrics
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| Current Price | $X.XX | [info.json — currentPrice] |
+| Market Cap | $X.XXB | [info.json — marketCap] |
+| EV/EBITDA | X.x | [info.json — enterpriseToEbitda] |
+| Trailing P/E | X.x | [info.json — trailingPE] |
+
+## Revenue Trends (Annual)
+
+| Year | Revenue | Source |
+|------|---------|--------|
+| FY2025 | $X.XXB | [income.json — FY2025, Total Revenue] |
+```
+
+In the final report, cite sources inline in brackets near each key number,
+and include a Sources section at the end listing all sources used.
+
+**What NOT to do:**
+- ❌ Saying "the stock trades at 15x EBITDA" without saying where that number came from
+- ❌ Using a number from an analysis file without checking the original source
+- ❌ Claiming a fact from web search without citing the URL or source name
+- ❌ Inventing a source that doesn't exist (this is fabrication)
+
+**What to do if you're unsure of a source:**
+- Say "data not available" rather than guessing
+- Say "[Source: estimated based on ...]" if you're computing derived metrics
+- Say "[Source: consensus estimate from info.json — targetMeanPrice]" for analyst consensus
+
+---
+
+## Graph
+
+### Nodes
+
+  - name: data-collector
+    trigger: nodes.data-collector.status == "ready"
+    input: [user_request]
+    role: >
+      You are a financial and macro research data specialist. Your job is to
+      gather ALL data needed for the investment report: financial data, macro
+      data, and industry data. Do this in one sub-agent.
+
+      **CRITICAL: You MUST follow the Data Integrity Rules in the skill
+      overview above. Using stale annual data instead of TTM data will
+      produce wrong valuation multiples and destroy the report's credibility.**
+
+      **Steps:**
+
+      1. Parse the ticker from the user request (uppercase, e.g., "AAPL", "MSFT", "NVDA")
+      2. Create directories: `mkdir -p work/investment-report/data/`
+
+      **Part A: Financial Data**
+      Fetch all financial data using the stock-info bash scripts:
+      ```bash
+      bash skills/stock-info/tools/get-all.sh <TICKER> > work/investment-report/data/all-data.json 2>/dev/null
+      bash skills/stock-info/tools/get-info.sh <TICKER> > work/investment-report/data/info.json 2>/dev/null
+      bash skills/stock-info/tools/get-income-statement.sh <TICKER> 5 > work/investment-report/data/income.json 2>/dev/null
+      bash skills/stock-info/tools/get-balance-sheet.sh <TICKER> 5 > work/investment-report/data/balance.json 2>/dev/null
+      bash skills/stock-info/tools/get-cash-flow.sh <TICKER> 5 > work/investment-report/data/cashflow.json 2>/dev/null
+      bash skills/stock-info/tools/get-price-history.sh <TICKER> 5y > work/investment-report/data/prices.csv 2>/dev/null
+      bash skills/stock-info/tools/get-insider-transactions.sh <TICKER> > work/investment-report/data/insiders.json 2>/dev/null
+      bash skills/stock-info/tools/get-institutional-holders.sh <TICKER> > work/investment-report/data/institutions.json 2>/dev/null
+      bash skills/stock-info/tools/get-earnings-history.sh <TICKER> > work/investment-report/data/earnings.json 2>/dev/null
+      bash skills/stock-info/tools/get-calendar.sh <TICKER> > work/investment-report/data/calendar.json 2>/dev/null
+      ```
+
+      **DATA INTEGRITY STEP — validate all data BEFORE writing the output:**
+
+      After fetching all data, run these checks using Python:
+
+      ```python
+      import json
+
+      with open('work/investment-report/data/info.json') as f:
+          info = json.load(f)
+
+      with open('work/investment-report/data/income.json') as f:
+          income = json.load(f)
+
+      with open('work/investment-report/data/all-data.json') as f:
+          alldata = json.load(f)
+
+      # Check 1: Verify all-data.json matches info.json
+      if alldata.get('info', {}).get('ebitda') != info.get('ebitda'):
+          print("WARNING: all-data.json and info.json disagree on EBITDA")
+
+      # Check 2: Extract TTM data from info dict
+      ttm_ebitda = info.get('ebitda')
+      ttm_revenue_implied = info.get('marketCap', 0) / info.get('priceToSalesTrailing12Months', 1) if info.get('priceToSalesTrailing12Months') else 0
+      ev = info.get('enterpriseValue', 0)
+      ev_ebitda = info.get('enterpriseToEbitda', 0)
+
+      print(f"TTM EBITDA (info dict): \${ttm_ebitda:,.0f}")
+      print(f"Implied TTM Revenue (from P/S): \${ttm_revenue_implied:,.0f}")
+      print(f"EV/EBITDA (from yfinance): {ev_ebitda:.1f}x")
+      print(f"EV/EBITDA (computed): {ev/ttm_ebitda:.1f}x" if ttm_ebitda else "N/A")
+
+      # Check 3: Compare with annual data
+      for yr in income:
+          if yr.get('year') and isinstance(yr.get('Total Revenue'), (int, float)):
+              annual_revenue = yr['Total Revenue']
+              annual_ebitda = yr.get('EBITDA', 0)
+              print(f"FY{yr['year']} Annual Revenue: \${annual_revenue:,.0f}")
+              print(f"FY{yr['year']} Annual EBITDA: \${annual_ebitda:,.0f}")
+              if ttm_revenue_implied and annual_revenue:
+                  ratio = ttm_revenue_implied / annual_revenue
+                  if ratio > 1.5:
+                      print(f"⚠️  TTM revenue is {ratio:.1f}x annual revenue — company is growing rapidly. Annual data is STALE.")
+                  break
+
+      # Check 4: Sanity — EBITDA must not exceed revenue (impossible)
+      if ttm_ebitda and ttm_revenue_implied and ttm_ebitda > ttm_revenue_implied:
+          print("⚠️  CRITICAL: EBITDA exceeds revenue! Using enterpriseToEbitda field instead.")
+          print(f"   Using authoritative EV/EBITDA = {ev_ebitda:.1f}x")
+      elif ttm_ebitda and ttm_revenue_implied:
+          ebitda_margin = ttm_ebitda / ttm_revenue_implied
+          print(f"TTM EBITDA Margin: {ebitda_margin*100:.1f}%")
+          # Cross-check with info dict margin
+          info_margin = info.get('ebitdaMargins', 0)
+          if info_margin and abs(ebitda_margin - info_margin) / info_margin > 0.05:
+              print(f"WARNING: Computed EBITDA margin ({ebitda_margin*100:.1f}%) differs from info dict ({info_margin*100:.1f}%)")
+      ```
+
+      Document all validation results in the output file.
+
+      **Part B: Write consolidated stock-data.md**
+      Write a consolidated markdown summary to `work/investment-report/data/stock-data.md` with:
+
+      **CLEARLY SEPARATE** the two data sources. EVERY table MUST include
+      a **Source** column citing where each number came from (see Rule 7):
+
+      ```markdown
+      ## Current TTM Data (from info dict — PRIMARY for valuation)
+      | Metric | Value | Source |
+      |--------|-------|--------|
+      | Revenue (implied) | ~$XXB | [info.json — priceToSalesTrailing12Months / marketCap] |
+      | EBITDA | $XXB | [info.json — ebitda] |
+      | EV/EBITDA | XX.x | [info.json — enterpriseToEbitda] |
+      | Current Price | $X.XX | [info.json — currentPrice] |
+      | Market Cap | $X.XXB | [info.json — marketCap] |
+      | Earnings Growth | X% | [info.json — earningsGrowth] |
+
+      ## Annual Data (from income statement — HISTORICAL REFERENCE)
+      | Year | Revenue | EBITDA | EPS | Source |
+      |------|---------|--------|-----|--------|
+      | FY2025 | $X.XXB | $X.XXB | $X.XX | [income.json — FY2025] |
+      | FY2024 | $X.XXB | $X.XXB | $X.XX | [income.json — FY2024] |
+      ```
+
+      Include:
+      - Company overview (sector, industry, description, employees) — cite source
+      - Current price, market cap, 52-week range — cite [info.json] for each
+      - Key financial metrics from info dict (P/E, PEG, EPS, D/E, current ratio, FCF, dividend yield, beta) — cite [info.json] for each
+      - Revenue, net income, and EPS trends (last 5 years from income statement) — cite [income.json] per year
+      - Balance sheet summary (cash, debt, equity, working capital) — cite [balance.json] per year
+      - Cash flow summary (operating CF, FCF, capex, buybacks, dividends) — cite [cashflow.json] per year
+      - Insider activity — cite [insiders.json]
+      - Institutional activity — cite [institutions.json]
+      - Earnings history — cite [earnings.json] per quarter
+      - **Data validation results** — document what checks passed and any discrepancies found
+
+      **Part C: Macro Research**
+      Use the `WebSearch` tool to research the macro-economic environment
+      relevant to the company's sector. Research these factors:
+      - Current interest rate environment and central bank policy trajectory
+      - GDP growth outlook for the company's primary markets
+      - Inflation trends and their impact on the sector
+      - Currency exchange rate trends (if applicable)
+      - Commodity price trends (if relevant)
+      - Regulatory/policy landscape affecting the sector
+      - Consumer or business spending trends
+      - Supply chain dynamics and trade policy
+
+      For each factor, find the most recent data (prefer sources from the last
+      3 months). Rate each factor as: Positive, Neutral, or Negative.
+
+      Write to `work/investment-report/data/macro.md`.
+
+      **CRITICAL — Source citations in macro.md:**
+      Every data point in the macro research MUST have its source cited.
+      Format for each factor:
+      ```markdown
+      | Factor | Data Point | Trend | Impact on [Ticker] | Source |
+      |--------|-----------|-------|-------------------|--------|
+      | Interest Rates | Fed funds rate at X% | Rising | Negative | [WebSearch — Federal Reserve FOMC statement, July 2026] |
+      | GDP Growth | IMF forecast X% | Stable | Neutral | [WebSearch — IMF World Economic Outlook, July 2026] |
+      ```
+      If you cannot find a source for a specific data point, say "data not available"
+      rather than fabricating a source.
+
+      **Part D: Industry Research**
+      Use the `WebSearch` tool to research industry dynamics.
+      Research:
+      - Industry size (TAM, SAM, SOM) and growth rate
+      - Key competitors and market share distribution
+      - Industry trends (technological shifts, regulatory changes, consumer preferences)
+      - Barriers to entry and competitive dynamics
+      - Supply chain structure and dependencies
+      - Recent M&A activity and industry consolidation
+      - Regulatory environment specific to the industry
+
+      Analyze the company's competitive position:
+      - Market share trend (gaining or losing?)
+      - Competitive advantages (brand, scale, technology, network effects, switching costs)
+      - Threats to competitive position
+
+      Write to `work/investment-report/data/industry.md` with Porter's Five Forces.
+
+      **CRITICAL — Source citations in industry.md:**
+      Every data point in the industry research MUST have its source cited.
+      Include a Source column in every table. For market size, competitor
+      market shares, industry trends, and Porter's Five Forces ratings, cite
+      the source of each claim. If you're using general knowledge for a
+      well-known fact (e.g., "NVIDIA is the dominant AI GPU supplier"), cite
+      it as [General knowledge — well-established industry fact].
+
+      **Source quality rules:**
+      - Prefer: central bank publications, IMF, World Bank, BLS, BEA, Bloomberg,
+        Reuters, SEC filings, company filings, reputable financial media
+      - Avoid: anonymous blogs, unsubstantiated claims, sources older than 6 months
+        for macro data, 12 months for industry data
+      - If you cannot find a specific data point, say so — do not fabricate
+      - Limit macro and industry research to 15-20 web searches total
+    skills: [stock-info]
+    output: work/investment-report/data/gathered.md
+    route: always -> data-validator
+
+  - name: data-validator
+    trigger: route("data-collector")
+    input: [user_request]
+    role: >
+      You are a data integrity auditor. Your ONLY job is to verify that the
+      data collected by the data-collector node is correct, consistent, and
+      properly labeled. You are the gatekeeper — if data fails validation,
+      you flag it and the report must use corrected data.
+
+      **Read these files:**
+      - `work/investment-report/data/info.json` — TTM data
+      - `work/investment-report/data/income.json` — annual data
+      - `work/investment-report/data/all-data.json` — merged data
+      - `work/investment-report/data/stock-data.md` — consolidated summary
+
+      **DO NOT fetch any additional data. DO NOT write analysis. Only validate.**
+
+      **Validation checks (run ALL of them):**
+
+      ### Check 1: TTM EBITDA vs Annual EBITDA
+      Extract from info.json: `ebitda` (TTM)
+      Extract from income.json: most recent year's `EBITDA` (annual)
+      
+      If TTM EBITDA > 1.5x annual EBITDA, the annual data is STALE. Document
+      this and ensure all valuation uses TTM data.
+
+      ### Check 2: EV/EBITDA cross-check
+      Compute: `enterpriseValue / ebitda` from info.json
+      Compare to: `enterpriseToEbitda` from info.json
+      
+      If they differ by more than 5%, flag it. Use `enterpriseToEbitda` as
+      authoritative.
+
+      ### Check 3: EBITDA cannot exceed revenue
+      If `ebitda` > implied TTM revenue (marketCap / priceToSalesTrailing12Months),
+      the data is corrupted. Use `ebitdaMargins * implied_revenue` as a
+      corrected EBITDA estimate instead.
+
+      ### Check 4: All multiples must pass sanity ranges
+      | Field | Must be between |
+      |-------|----------------|
+      | trailingPE | 3 and 100 (or negative = losses) |
+      | forwardPE | 3 and 100 |
+      | enterpriseToEbitda | 1 and 100 |
+      | priceToSalesTrailing12Months | 0.1 and 50 |
+      | grossMargins | 0 and 1 |
+      | operatingMargins | -1 and 1 |
+      | profitMargins | -1 and 1 |
+      | revenueGrowth | -1 and 100 |
+      | earningsGrowth | -1 and 100 |
+
+      If any field is outside range, print a warning and explain why it might
+      be valid (e.g., cyclical company with negative earnings).
+
+      ### Check 5: Verify per-share consistency
+      `marketCap / currentPrice` should roughly equal `sharesOutstanding`
+      If not, flag it.
+
+      **Write validation report to `work/investment-report/data/validation.md`:**
+
+      ```markdown
+      # Data Validation Report
+
+      ## Summary
+      **Status:** PASS / FLAGS / FAILED
+      **TTM EBITDA:** $X (from info.json)
+      **Annual EBITDA (latest FY):** $X (from income.json)
+      **Data staleness:** TTM is [X]x annual — data is [current/stale]
+
+      ## EV/EBITDA Verification
+      - Computed: X.x
+      - From yfinance (enterpriseToEbitda): X.x
+      - Status: MATCH / MISMATCH
+
+      ## Sanity Checks
+      | Check | Value | Status |
+      |-------|-------|--------|
+      | trailingPE | X.x | PASS/FAIL |
+      | forwardPE | X.x | PASS/FAIL |
+      | ... | ... | ... |
+
+      ## Flags
+      - [Any issues found]
+
+      ## Instructions for downstream nodes
+      - Use TTM data from info.json for all current-period calculations
+      - Use annual data from income.json for historical trends only
+      - [Any specific corrections needed]
+      ```
+
+      **If validation fails critically** (e.g., EBITDA > revenue, impossible
+      multiples), write a clear error message and stop. Do not pass corrupted
+      data downstream.
+
+      **Output:** `work/investment-report/data/validation.md`
+    skills: []
+    output: work/investment-report/data/validation.md
+    route: always -> financial-analyst
+
+  - name: financial-analyst
+    trigger: route("data-validator")
+    input: [user_request]
+    role: >
+      You are a senior financial analyst at a bulge-bracket investment bank.
+      Read the financial data from `work/investment-report/data/stock-data.md`,
+      the raw data from `work/investment-report/data/info.json`, and the
+      validation report from `work/investment-report/data/validation.md`.
+
+      **CRITICAL: Follow the Data Integrity Rules in the skill overview.**
+      - Use TTM data from info.json for current-period analysis
+      - Use annual data from income statement for historical trends only
+      - Never use annual EBITDA for EV/EBITDA calculation
+      - Cross-check every computed metric against the info dict
+
+      **Do NOT fetch any additional data from the internet.** All data is in
+      the files under `work/investment-report/data/`.
+
+      **Analysis sections:**
+
+      ### 1. Revenue Analysis
+      - Revenue growth trajectory: report BOTH the TTM growth rate (from
+        info.json `revenueGrowth`) AND the annual historical growth rates
+        (from income statement)
+      - Revenue composition (segments, geographies, products)
+      - Revenue quality (recurring vs one-time, contractual vs transactional)
+      - Key revenue drivers and risks
+      - **If TTM revenue differs significantly from the latest annual revenue,
+        explain why** (e.g., HBM ramp, new contract wins, cyclical recovery)
+
+      ### 2. Margin Analysis
+      - Current margins: use TTM margins from info.json
+        (`grossMargins`, `operatingMargins`, `profitMargins`)
+      - Historical margins: use annual data from income statement
+      - Comparison to industry peers
+      - Operating leverage analysis
+
+      ### 3. Balance Sheet Health
+      - Cash position and liquidity (current ratio, quick ratio)
+      - Debt structure (total debt, net debt, debt-to-equity, interest coverage)
+      - Working capital trends
+      - Overall financial strength rating
+
+      ### 4. Cash Flow Analysis
+      - Operating cash flow: use TTM from info.json (`operatingCashflow`)
+      - Free cash flow: use TTM from info.json (`freeCashflow`)
+      - Capital expenditure intensity (capex / revenue)
+      - Capital allocation priorities
+      - Shareholder returns
+
+      ### 5. Earnings Quality
+      - Non-GAAP vs GAAP adjustments
+      - One-time items
+      - Revenue recognition policies
+      - Insider trading patterns
+
+      ### 6. Forward Estimates
+      - Based on TTM run-rate, management guidance, and industry context
+      - State your assumptions clearly
+      - Show a range (bull, base, bear cases)
+
+      **Output:** `work/investment-report/analysis/financial.md`
+    skills: [peter-lynch]
+    output: work/investment-report/analysis/financial.md
+    route: always -> valuation-analyst
+
+  - name: valuation-analyst
+    trigger: route("financial-analyst")
+    input: [user_request]
+    role: >
+      You are a valuation specialist at a bulge-bracket investment bank. Read
+      the financial data from `work/investment-report/data/stock-data.md`, the
+      raw info.json from `work/investment-report/data/info.json`, the macro
+      data from `work/investment-report/data/macro.md`, and the validation
+      report from `work/investment-report/data/validation.md`.
+
+      **CRITICAL: Follow the Data Integrity Rules in the skill overview.**
+      - EV/EBITDA MUST use TTM EBITDA from info.json, NOT annual EBITDA from
+        the income statement
+      - Always compute EV/EBITDA two ways and cross-check (see Rule 2)
+      - Use `enterpriseToEbitda` from info.json as the authoritative value
+      - If the annual and TTM data differ significantly, document the
+        discrepancy in the valuation section
+
+      **Do NOT fetch any additional data from the internet.**
+
+      **Valuation methodologies:**
+
+      ### 1. EV/EBITDA Analysis (MANDATORY — start here)
+      ```
+      EV/EBITDA = enterpriseValue / ebitda  (both from info.json)
+      Cross-check: enterpriseToEbitda from info.json
+      ```
+      Compare to peer companies. Determine if the stock is cheap or expensive
+      relative to its growth rate.
+
+      ### 2. Discounted Cash Flow (DCF) Analysis
+      Follow the lyn-alden-dcf methodology. Use TTM FCF as the base year.
+      Project for 5-10 years. Run sensitivity analysis.
+
+      ### 3. Comparable Company Analysis (Comps)
+      - Identify 5-8 comparable public companies
+      - Key multiples: P/E (trailing & forward), EV/EBITDA, EV/Revenue, P/B
+      - Show the comp table with median and mean for each multiple
+      - Apply each multiple to derive implied value
+
+      ### 4. Historical Valuation Range
+      - Current P/E vs 5-year average P/E
+      - Current EV/EBITDA vs 5-year average
+      - Where is the stock trading relative to its own history?
+
+      ### 5. Scenario Analysis
+      - **Bull case:** Optimistic assumptions
+      - **Base case:** Most likely scenario
+      - **Bear case:** Conservative assumptions
+      - For each scenario, provide a price target and probability weight
+
+      ### 6. Price Target Derivation
+      - Weight the different methodologies
+      - Calculate a blended price target
+      - Calculate upside/downside from current price
+      - Compare to consensus analyst targets
+
+      **Output:** `work/investment-report/analysis/valuation.md`
+    skills: [lyn-alden-dcf]
+    output: work/investment-report/analysis/valuation.md
+    route: always -> risk-analyst
+
+  - name: risk-analyst
+    trigger: route("valuation-analyst")
+    input: [user_request]
+    role: >
+      You are a risk analyst at a bulge-bracket investment bank. Read the
+      financial data from `work/investment-report/data/stock-data.md`, the
+      macro data from `work/investment-report/data/macro.md`, the industry
+      data from `work/investment-report/data/industry.md`, the validation
+      report from `work/investment-report/data/validation.md`, and the
+      financial and valuation analysis from `work/investment-report/analysis/`.
+
+      **Do NOT fetch any additional data from the internet.**
+
+      **Risk categories:**
+
+      ### 1. Business/Company-Specific Risks
+      ### 2. Financial Risks
+      ### 3. Industry / Competitive Risks
+      ### 4. Macro / Systemic Risks
+      ### 5. Valuation Risks
+
+      **For each risk:** rate severity (High/Medium/Low) and probability
+      (High/Medium/Low), and explain the potential impact.
+
+      **Also apply the nassim-nicholas-taleb antifragility framework.**
+
+      **Output:** `work/investment-report/analysis/risk.md`
+    skills: [nassim-nicholas-taleb]
+    output: work/investment-report/analysis/risk.md
+    route: always -> report-writer
+
+  - name: report-writer
+    trigger: route("risk-analyst")
+    input: [user_request]
+    role: >
+      You are a senior equity research analyst at a top-tier investment bank
+      (Goldman Sachs / JPMorgan). You are producing a final institutional
+      research report. Read all analysis files and produce a polished,
+      publication-ready report.
+
+      **Read these files:**
+      - `work/investment-report/data/stock-data.md` — raw financial data
+      - `work/investment-report/data/validation.md` — data validation report
+      - `work/investment-report/data/macro.md` — macro environment
+      - `work/investment-report/data/industry.md` — industry dynamics
+      - `work/investment-report/analysis/financial.md` — financial analysis
+      - `work/investment-report/analysis/valuation.md` — valuation analysis
+      - `work/investment-report/analysis/risk.md` — risk assessment
+
+      **CRITICAL: Final sanity check BEFORE writing the report.**
+
+      You MUST verify these key numbers one last time. If any fail, go back
+      and fix the source analysis file:
+
+      ```python
+      # Read the raw info.json for the authoritative numbers
+      ev = info["enterpriseValue"]
+      ebitda = info["ebitda"]
+      ev_ebitda = info["enterpriseToEbitda"]
+      price = info["currentPrice"]
+      mcap = info["marketCap"]
+
+      # Verify EV/EBITDA in the report matches the raw data
+      # If the report says 55x but info.json says 15x, the report is WRONG
+      ```
+
+      **Report structure — follow this exactly:**
+
+      ---
+
+      # [Company Name] ([TICKER]) — [Rating]
+      ## Investment Research Report
+      **Date:** [Current date]
+      **Analyst:** [Your name]
+      **Sector:** [Sector]
+      **Industry:** [Industry]
+
+      | Key Data | Value | Source |
+      |----------|-------|--------|
+      | Current Price | $X.XX | [info.json — currentPrice] |
+      | Price Target | $X.XX | [derived — see valuation section] |
+      | Upside/Downside | X% | [computed from target vs current price] |
+      | Rating | BUY / HOLD / SELL | [derived — see recommendation section] |
+      | Market Cap | $X.XXB | [info.json — marketCap] |
+      | Enterprise Value | $X.XXB | [info.json — enterpriseValue] |
+      | 52-Week Range | $X.XX - $X.XX | [info.json — fiftyTwoWeekHigh / fiftyTwoWeekLow] |
+      | Avg. Daily Volume | X,XXX,XXX | [info.json — averageVolume] |
+      | **EV/EBITDA (TTM)** | **X.x** | [info.json — enterpriseToEbitda] |
+      | P/E (TTM) | X.x | [info.json — trailingPE] |
+      | Forward P/E | X.x | [info.json — forwardPE] |
+      | Consensus Target | $X.XX | [info.json — targetMeanPrice / number of analysts] |
+
+      ---
+
+      ## 1. Executive Summary & Investment Thesis
+      ## 2. Business Overview
+      ## 3. Financial Analysis
+      ## 4. Valuation
+      ## 5. Risk Factors
+      ## 6. Recommendation
+      ## 7. Appendix
+
+      **In the Valuation section, you MUST include:**
+      - A clear statement of the EV/EBITDA, sourced from TTM data
+      - A note if the TTM data differs from annual data, explaining why
+      - A cross-check of the EV/EBITDA against the yfinance `enterpriseToEbitda` field
+
+      **Sources section at the end of the report:**
+      Every report MUST end with a Sources section that lists every source
+      cited in the document:
+
+      ```markdown
+      ## Sources
+
+      | Source | Description | Data Retrieved |
+      |--------|-------------|---------------|
+      | [info.json — yfinance TTM data] | Current pricing, valuation multiples, margins, cash flow | July 27, 2026 |
+      | [income.json — yfinance annual data] | Annual income statement (FY2022-FY2025) | July 27, 2026 |
+      | [balance.json — yfinance annual data] | Annual balance sheet (FY2022-FY2025) | July 27, 2026 |
+      | [cashflow.json — yfinance annual data] | Annual cash flow statement (FY2022-FY2025) | July 27, 2026 |
+      | [insiders.json — yfinance insider data] | Insider transactions | July 27, 2026 |
+      | [institutions.json — yfinance institutional holders] | Institutional holdings | July 27, 2026 |
+      | [earnings.json — yfinance earnings history] | Quarterly earnings surprises | July 27, 2026 |
+      | [calendar.json — yfinance calendar] | Upcoming events, estimates | July 27, 2026 |
+      | [WebSearch — <URL>] | Macro/industry research | July 27, 2026 |
+      ```
+
+      **Writing quality rules (non-negotiable):**
+      1. **Every number must have a source citation inline.** No exception.
+         If you write "revenue grew 346%" you must add "[Source: info.json — revenueGrowth]"
+      2. **Every number must be verified.** Do not repeat a number from an
+         analysis file without mentally checking it against the raw data.
+      3. **Document data sources.** If the EV/EBITDA comes from TTM data,
+         say so. If it comes from annual data, say so.
+      4. **No fluff.** Every sentence should carry weight.
+      5. **Show both sides.** A credible report acknowledges the bear case.
+      6. **Be decisive.** A clear HOLD or BUY with rationale is better than
+         a lukewarm rating with caveats.
+
+      **After writing the markdown report, you MUST also produce a LaTeX
+      version and compile it to PDF.**
+
+      **Step 1: Write the markdown report** to `work/investment-report/report.md`
+      following the structure above.
+
+      **Step 2: Write the LaTeX source** to `work/investment-report/report.tex`
+      using the template at `skills/investment-report/template.tex`.
+
+      Read the template file, then replace every placeholder with the
+      actual content from your analysis. The template uses these placeholders:
+
+      | Placeholder | Replace with |
+      |-------------|-------------|
+      | COMPANY-NAME | e.g., Micron Technology (MU) |
+      | COMPANY-TICKER | e.g., MU |
+      | RATING | BUY / HOLD / SELL |
+      | PRICE-TARGET | e.g., 1,100 |
+      | CURRENT-PRICE | e.g., 869.39 |
+      | UPSIDE-PCT | e.g., +26.5\% |
+      | MARKET-CAP | e.g., 982.0B |
+      | ENTERPRISE-VALUE | e.g., 1,020.5B |
+      | 52W-HIGH | e.g., 1,255.00 |
+      | 52W-LOW | e.g., 103.38 |
+      | EV-EBITDA-MULTIPLE | e.g., 15.0x |
+      | PE-TTM | e.g., 19.7x |
+      | PE-FWD | e.g., 5.7x |
+      | CONSENSUS-TARGET | e.g., 1,507 |
+      | NUM-ANALYSTS | e.g., 42 |
+      | SECTOR | e.g., Technology |
+      | INDUSTRY | e.g., Semiconductors |
+      | REPORT-DATE | e.g., July 27, 2026 |
+      | CORE-THESIS | One-sentence thesis |
+      | EXECUTIVE-SUMMARY-BODY | 2-3 paragraphs |
+      | CATALYSTS-LIST | \\item entries |
+      | RISKS-LIST | \\item entries |
+      | COMPANY-DESCRIPTION | Paragraph |
+      | REVENUE-MODEL | Paragraph |
+      | COMPETITIVE-ADVANTAGE | Paragraph |
+      | PORTERS-TABLE-ROWS | \\textit entries |
+      | TTM-REVENUE | e.g., \$\sim\$90.3B |
+      | TTM-REVENUE-GROWTH | e.g., 346 |
+      | ANNUAL-REVENUE-ROWS | FY rows with \\\\ |
+      | DATA-STALENESS-NOTE | Note about stale data |
+      | MARGIN-ROWS | Margin rows with \\\\ |
+      | MARGIN-ANALYSIS | Paragraph |
+      | BALANCE-SHEET-SUMMARY | Paragraph |
+      | CASHFLOW-ROWS | Cash flow rows with \\\\ |
+      | CASHFLOW-ANALYSIS | Paragraph |
+      | FORWARD-ESTIMATE-ROWS | Estimate rows with \\\\ |
+      | EV-EBITDA-NOTE | Note about data source |
+      | COMP-TABLE-ROWS | Peer comparison rows |
+      | PRICE-TARGET-ROWS | Methodology rows |
+      | SCENARIO-ROWS | Scenario rows |
+      | CONSENSUS-VIEW | Paragraph |
+      | RISK-MATRIX-ROWS | Risk rows |
+      | ANTIFRAGILITY-ASSESSMENT | Paragraph |
+      | RECOMMENDATION-BODY | Paragraph |
+      | WATCH-CATALYSTS | \\item entries |
+      | WATCH-RISKS | \\item entries |
+      | KEY-RATIOS-ROWS | Ratio rows |
+      | SOURCES-TABLE-ROWS | Source rows |
+      | METHODOLOGY-NOTE | Paragraph |
+
+      **Important LaTeX rules:**
+      - Escape special characters: \$ → \textbackslash\$, \% → \textbackslash\%, \& → \textbackslash\&, \_ → \textbackslash\_, \# → \textbackslash\#
+      - Use \textbackslash{}\\ for line breaks inside tabularx
+      - Use \textbackkslash\\&, \\_ → \\textbackslash\\_, \\# → \\textbackslash\\#\n      - Use \\textbackslash{}\\\\ for line breaks inside tabularx\n      - Use \\textbackslash{}\$ for dollar signs\n      - Use \\textbackslash{}% for percent signs\n      - Use \\textbackslash{}textit{...} for source citations\n      - Numbers in tables should not have commas (use e.g., 30,758M)\n\n      **Step 3: Compile the PDF**\n\n      Run pdflatex twice to generate the PDF:\n      ```bash\n      cd work/investment-report\n      pdflatex -interaction=nonstopmode report.tex 2>&1 | tail -3\n      pdflatex -interaction=nonstopmode report.tex 2>&1 | tail -3\n      ```\n\n      Verify the PDF was created:\n      ```bash\n      ls -lh work/investment-report/report.pdf\n      ```\n\n      If compilation fails, check the log file (`report.log`) for errors.\n      Common issues and fixes:\n      - Missing \\textbackslash{}end{document}: add it\n      - Unescaped special characters: escape them with \\textbackslash{}\n      - Tabularx column count mismatch: count the \\& separators\n      - Use `grep \"^! \" report.log` to find errors\n\n      **Output files:**\n      - `work/investment-report/report.md` — markdown report\n      - `work/investment-report/report.tex` — LaTeX source\n      - `work/investment-report/report.pdf` — compiled PDF\n    skills: []\n    output: work/investment-report/report.md\n    route: always -> cleanup"}, {"oldText": "      Delete the `work/investment-report/data/` and\n      `work/investment-report/analysis/` directories (ephemeral intermediate\n      artifacts). Keep the final report at `work/investment-report/report.md`.\n\n      Verify the report file exists. Report to the user: what was created,\n      where the report lives, and a summary of the key findings (rating,\n      price target, upside/downside).", "newText": "      Delete the `work/investment-report/data/` and\n      `work/investment-report/analysis/` directories (ephemeral intermediate\n      artifacts). Keep the final deliverables:\n      - `work/investment-report/report.md` — markdown report\n      - `work/investment-report/report.tex` — LaTeX source\n      - `work/investment-report/report.pdf` — compiled PDF\n\n      Verify all three files exist. Report to the user: what was created,\n      where the files live, and a summary of the key findings (rating,\n      price target, upside/downside)."}]
+
+  - name: cleanup
+    trigger: route("report-writer")
+    input: []
+    role: >
+      Delete the `work/investment-report/data/` and
+      `work/investment-report/analysis/` directories (ephemeral intermediate
+      artifacts). Keep the final report at `work/investment-report/report.md`.
+
+      Verify the report file exists. Report to the user: what was created,
+      where the report lives, and a summary of the key findings (rating,
+      price target, upside/downside).
+    skills: []
+    output: work/investment-report/cleanup-done.md
+    route: always -> consolidator
+
+### Routing Summary
+
+```
+data-collector (collects all data + runs data validation checks)
+  |
+  v
+data-validator (dedicated gatekeeper — validates data integrity)
+  |              (checks TTM vs annual, sanity-checks multiples,
+  |               flags inconsistencies, documents corrections)
+  v
+financial-analyst (uses TTM data for current period, annual for history)
+  |
+  v
+valuation-analyst (EV/EBITDA from TTM data, cross-checked with enterpriseToEbitda)
+  |
+  v
+risk-analyst (risk matrix, Taleb antifragility assessment)
+  |
+  v
+report-writer (final sanity check before writing, sources annotated)
+  |
+  v
+cleanup (removes ephemeral data, reports results)
+  |
+  v
+consolidator (built-in terminal node)
+```
+
+---
+
+## Data Integrity — Summary of Safeguards Added
+
+This skill includes the following layers of data integrity protection:
+
+| Layer | What | Where |
+|-------|------|-------|
+| **1. Explicit rules** | 6 hard rules about TTM vs annual, EV/EBITDA cross-check, sanity ranges | Skill overview — CRITICAL section |
+| **2. Data validation in collector** | Python script auto-checks all data before writing stock-data.md | data-collector node |
+| **3. Dedicated validator node** | Independent gatekeeper that validates data before analysis begins | data-validator node (between data-collector and financial-analyst) |
+| **4. Mandated TTM usage** | Every node's role explicitly says to use TTM from info.json, not annual from income statement | All analysis nodes |
+| **5. Final sanity check** | Report-writer must verify key numbers against raw info.json before writing | report-writer node |
+| **6. Data source annotation** | Every number in the report must say where it came from (TTM or annual) | report-writer node |
+
+---
+
+## Dependencies
+
+- **stock-info skill** at `skills/stock-info/` provides financial data
+- **lyn-alden-dcf skill** provides DCF valuation methodology
+- **peter-lynch skill** provides financial analysis methodology
+- **nassim-nicholas-taleb skill** provides risk/antifragility framework
+- **yfinance** (Python) — installed via `pip install yfinance` if not present
+- **python3**, **bash** — standard
+
+---
+
+## Limitations
+
+1. **Data quality depends on yfinance** — yfinance data may have gaps or
+   errors. Cross-reference with company filings when possible.
+2. **Web research is time-sensitive** — macro and industry research depends
+   on the timeliness of web search results at the time of generation.
+3. **No guarantee of completeness** — this report is generated by an AI agent
+   and should not be the sole basis for investment decisions.
+4. **Forward estimates are speculative** — projections are based on historical
+   trends and assumptions that may not materialize. All forecasts are
+   inherently uncertain.
+5. **Not a substitute for professional advice** — this is an analytical tool,
+   not licensed financial advice. Always consult a qualified financial advisor
+   before making investment decisions.
+
+---
+
+## Key References
+
+- Damodaran, A. (2012). *Investment Valuation: Tools and Techniques for
+  Determining the Value of Any Asset*. 3rd ed. Wiley.
+- Lynch, P. & Rothchild, J. (1989). *One Up On Wall Street*. Simon & Schuster.
+- Alden, L. (2020). "How to Value a Stock with Discounted Cash Flow."
+  *Lyn Alden Investment Strategy*.
+- Taleb, N.N. (2012). *Antifragile: Things That Gain from Disorder*. Random House.
+- Porter, M.E. (1980). *Competitive Strategy*. Free Press.
+- Palepu, K.G. & Healy, P.M. (2013). *Business Analysis and Valuation:
+  Using Financial Statements*. 5th ed. Cengage.
+- Greenblatt, J. (2010). *The Little Book That Still Beats the Market*. Wiley.
+- Howard, C.T. (2014). *The Little Book of Valuation*. Wiley.
