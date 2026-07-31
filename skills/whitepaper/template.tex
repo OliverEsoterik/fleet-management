@@ -1,0 +1,154 @@
+%===============================================================================
+% Whitepaper LaTeX Template
+% Modular template for investor-ready whitepapers
+% Uses \input{} for sections — include only what's relevant to your industry
+%===============================================================================
+
+\documentclass[11pt,a4paper]{article}
+
+% --- Encoding and Language ---
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+% --- Mathematics ---
+\usepackage{amsmath, amssymb}
+
+% --- Graphics and Color ---
+\usepackage{graphicx}
+\usepackage{xcolor}
+\definecolor{primary}{RGB}{0, 82, 136}
+\definecolor{accent}{RGB}{200, 50, 50}
+\definecolor{lightgray}{RGB}{245, 245, 245}
+
+% --- Layout ---
+\usepackage[top=1in, bottom=1in, left=1.2in, right=1.2in]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Tables ---
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
+
+% --- Captions ---
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf, justification=centering}
+
+% --- Headers and Footers ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\scriptsize \textit{\whitepaperTitle}}
+\fancyhead[R]{\thepage}
+\fancyfoot[C]{\scriptsize \textit{Confidential}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% --- Section Formatting ---
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{primary}}{\thesection}{1em}{}
+\titleformat{\subsection}{\large\bfseries\color{primary!80!black}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries}{\thesubsubsection}{1em}{}
+
+% --- Hyperlinks ---
+\usepackage[colorlinks=true, linkcolor=primary, urlcolor=primary, citecolor=primary]{hyperref}
+
+% --- Bibliography ---
+\usepackage[square, numbers, sort&compress]{natbib}
+
+% --- Lists ---
+\usepackage{enumitem}
+\setlist{nosep, left=2em}
+
+% --- Float Settings ---
+\usepackage{float}
+\restylefloat{table}
+
+%===============================================================================
+% DOCUMENT METADATA — Fill these in the whitepaper-writer phase
+%===============================================================================
+
+\newcommand{\whitepaperTitle}{[Whitepaper Title]}
+\newcommand{\whitepaperSubtitle}{[Subtitle — Optional]}
+\newcommand{\companyName}{[Company Name]}
+\newcommand{\docVersion}{1.0}
+\newcommand{\docDate}{\today}
+\newcommand{\confidentiality}{Confidential}
+
+%===============================================================================
+% DOCUMENT
+%===============================================================================
+
+\begin{document}
+
+% --- Title Page ---
+\begin{titlepage}
+\centering
+\vspace*{4cm}
+
+{\Huge\bfseries\color{primary} \whitepaperTitle}\\[0.5cm]
+{\Large\color{primary!80!black} \whitepaperSubtitle}\\[2cm]
+
+{\LARGE\bfseries \companyName}\\[1cm]
+
+{\large \docDate}\\[0.3cm]
+{\large Version \docVersion}\\[2cm]
+
+\rule{0.6\textwidth}{0.4pt}\\[1cm]
+
+{\large \confidentiality}\\[0.3cm]
+{\small This document contains proprietary information intended for
+limited distribution to potential investors and strategic partners.}
+\vfill
+\end{titlepage}
+
+% --- Table of Contents ---
+\newpage
+\tableofcontents
+\newpage
+
+% --- Modular Sections ---
+% The whitepaper-writer creates only the sections relevant to the industry.
+% Each section file lives in work/whitepaper/sections/ and is included here.
+
+\IfFileExists{sections/01-executive-summary.tex}
+  {\input{sections/01-executive-summary.tex}}{}
+
+\IfFileExists{sections/02-problem-statement.tex}
+  {\input{sections/02-problem-statement.tex}}{}
+
+\IfFileExists{sections/03-technical-solution.tex}
+  {\input{sections/03-technical-solution.tex}}{}
+
+\IfFileExists{sections/04-business-model.tex}
+  {\input{sections/04-business-model.tex}}{}
+
+\IfFileExists{sections/05-market-analysis.tex}
+  {\input{sections/05-market-analysis.tex}}{}
+
+\IfFileExists{sections/06-competitive-landscape.tex}
+  {\input{sections/06-competitive-landscape.tex}}{}
+
+\IfFileExists{sections/07-go-to-market.tex}
+  {\input{sections/07-go-to-market.tex}}{}
+
+\IfFileExists{sections/08-financial-projections.tex}
+  {\input{sections/08-financial-projections.tex}}{}
+
+\IfFileExists{sections/09-risk-analysis.tex}
+  {\input{sections/09-risk-analysis.tex}}{}
+
+\IfFileExists{sections/10-team.tex}
+  {\input{sections/10-team.tex}}{}
+
+\IfFileExists{sections/11-appendix.tex}
+  {\input{sections/11-appendix.tex}}{}
+
+% --- Bibliography ---
+\IfFileExists{references.bib}
+  {\bibliographystyle{plainnat}\bibliography{references}}{}
+
+\end{document}
