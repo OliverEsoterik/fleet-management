@@ -26,11 +26,11 @@ Read the template.tex to see which sections are available. Choose only the secti
 
 | Industry | Include | Skip |
 |----------|---------|------|
-| SaaS | Executive summary, problem, solution, business model, market, competitive, GTM, financials, risk, team | Regulatory, manufacturing |
-| Biotech | Executive summary, problem, solution, regulatory pathway, clinical trials, market, competitive, financials, risk, team | GTM (adapt), manufacturing |
-| Deep tech | Executive summary, problem, solution, technical architecture, IP, market, competitive, financials, risk, team | — |
-| Hardware | Executive summary, problem, solution, BOM, supply chain, manufacturing, market, competitive, financials, risk, team | GTM (adapt) |
-| Finance | Executive summary, problem, solution, regulatory, risk modeling, market, competitive, financials, team | Manufacturing |
+| SaaS | Executive summary, problem, solution, business model, corporate alignment, market, competitive, GTM, financials, ecosystem, risk, team | Regulatory, manufacturing |
+| Biotech | Executive summary, problem, solution, regulatory pathway, clinical trials, corporate alignment, market, competitive, financials, ecosystem, risk, team | GTM (adapt), manufacturing |
+| Deep tech | Executive summary, problem, solution, technical architecture, IP, corporate alignment, market, competitive, financials, ecosystem, risk, team | — |
+| Hardware | Executive summary, problem, solution, BOM, supply chain, manufacturing, corporate alignment, market, competitive, financials, ecosystem, risk, team | GTM (adapt) |
+| Finance | Executive summary, problem, solution, regulatory, risk modeling, corporate alignment, market, competitive, financials, ecosystem, team | Manufacturing |
 
 ### Step 4: Write each section
 
@@ -57,11 +57,14 @@ Create `work/whitepaper/sections/` directory. Write one `.tex` file per section.
    - Key metrics (TAM, revenue projection, team)
    - The ask (funding needed)
    - The reader should understand the entire opportunity from this section alone
+   - **Answers:** What is the purpose of the company? Why does it exist? What does it do?
 
 2. **Problem Statement** (1-2 pages)
    - The pain: who, what, how bad, how much it costs
    - Why existing solutions don't work
+   - Is this a real problem that really needs a solution? (validate the problem depth)
    - Why now (technology maturity, market shifts, regulatory changes)
+   - **Answers:** What problem is it solving? Is it a real problem that really needs a solution? Why now?
 
 3. **Technical Solution** (3-6 pages)
    - Architecture overview
@@ -69,45 +72,71 @@ Create `work/whitepaper/sections/` directory. Write one `.tex` file per section.
    - Why it's hard to replicate
    - Development roadmap
    - Technical risks and mitigations
+   - **MVP definition** (not prototype — a working product that delivers core value to early users)
+   - **Answers:** What is the solution? What does the MVP look like?
 
 4. **Business Model** (1-2 pages)
    - Revenue model and unit economics
    - Cost structure
    - Key metrics
+   - **Answers:** What is the business model? How does it make money?
 
-5. **Market Analysis** (2-3 pages)
+5. **Corporate Alignment & Partnership Strategy** (1-2 pages)
+   - How corporate partnerships are structured (co-development, distribution, strategic investment)
+   - Why corporate alignment proves the company is on the right track
+   - Exit strategy: the company is built with a clear path to acquisition by a strategic corporate buyer
+   - Existing corporate interest, LOIs, or pilot programs
+   - **Answers:** How will corporate alignment look? Why is this the right track?
+
+6. **Market Analysis** (2-3 pages)
    - TAM/SAM/SOM
    - Customer persona
    - Market trends
+   - **Answers:** What is the addressable market?
 
-6. **Competitive Landscape** (2-3 pages)
+7. **Competitive Landscape** (2-3 pages)
    - Competitor analysis
-   - Positioning
+   - Positioning and differentiation
    - Moat analysis
+   - **Answers:** What is the competition? Why is this solution significantly better?
 
-7. **Go-to-Market Strategy** (2-3 pages)
+8. **Go-to-Market Strategy** (2-3 pages)
    - Channels and sales model
    - Customer acquisition
    - Pricing
    - Marketing plan
+   - Scaling timeline: go-to-market within 12 months
+   - **Answers:** What is the go-to-market strategy?
 
-8. **Financial Projections** (2-3 pages)
+9. **Financial Projections & Capital Roadmap** (2-3 pages)
    - 5-year P&L summary
    - Monte Carlo results (chart/table)
    - Sensitivity analysis
    - Break-even analysis
    - Funding plan and use of funds
+   - Capital roadmap: what milestones each funding round unlocks, how capital maps to scaling
+   - **Answers:** What should the roadmap in capital look like?
 
-9. **Risk Analysis** (1-2 pages)
-   - Top risks and mitigations
-   - Premortem findings
+10. **Ecosystem** (1-2 pages)
+    - Surrounding ecosystem: platforms, partners, complementary technologies
+    - Network effects and ecosystem dynamics
+    - How the company creates value within or creates an ecosystem
+    - Long-term scalability: how the ecosystem grows with the company
+    - **Answers:** What is the ecosystem?
 
-10. **Team** (1 page)
+11. **Risk Analysis** (1-2 pages)
+    - Top risks and mitigations
+    - Premortem findings
+    - Talent risk: how the company will attract and retain the talent needed
+    - Product-market fit risk: how PMF will be validated
+
+12. **Team** (1 page)
     - Founders and key team members
     - Advisors
-    - Key hires needed
+    - Key hires needed (specific roles the company requires to build this)
+    - **Answers:** What is the team? What roles do we need to hire?
 
-11. **Appendix** (optional)
+13. **Appendix** (optional)
     - Detailed financials
     - Technical specifications
     - Market research methodology

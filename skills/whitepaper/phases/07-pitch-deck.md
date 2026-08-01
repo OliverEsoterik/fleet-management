@@ -21,15 +21,15 @@ Same as the whitepaper — apply fixes from the coherence report before writing.
 
 ### Step 3: Design the slide structure
 
-**10-15 slides max.** Investors have short attention spans. Every slide must earn its place.
+**12-16 slides max (14 is the sweet spot).** Investors have short attention spans. Every slide must earn its place.
 
 **Slide structure:**
 
 1. **Title slide** — Company name, tagline, presenter name, date. One sentence that makes the investor want to know more.
 
-2. **Problem** (1 slide) — The pain. Make it visceral. Use a specific example or quantify the cost. "Companies spend $X/year on Y, and it's still broken."
+2. **Problem** (1 slide) — The pain. Make it visceral. Use a specific example or quantify the cost. "Companies spend $X/year on Y, and it's still broken." Include why now — why this problem is urgent.
 
-3. **Solution** (1 slide) — What you do, in one clear sentence. A screenshot or mockup if possible. The "aha" moment.
+3. **Solution** (1 slide) — What you do, in one clear sentence. A screenshot or mockup if possible. The "aha" moment. Explicitly call out the MVP (not prototype — a working product that delivers core value).
 
 4. **How it works** (1-2 slides) — The technical magic. Not a deep dive — just enough to show it's real and hard to copy. Architecture diagram (simplified).
 
@@ -37,17 +37,21 @@ Same as the whitepaper — apply fixes from the coherence report before writing.
 
 6. **Business model** (1 slide) — How you make money. Unit economics (ARPU, gross margin, LTV/CAC). One simple chart.
 
-7. **Traction / roadmap** (1 slide) — Where you are now and where you're going. Milestones, not activities. "Launched MVP, 3 paying customers, $X revenue."
+7. **Corporate Alignment & Exit Strategy** (1 slide) — How corporate partnerships are structured. Why this proves the company is on the right track. The exit strategy: the company is built with a clear path to acquisition by a strategic corporate buyer. Investors with corporate connections are particularly valuable.
 
-8. **Competitive landscape** (1 slide) — 2x2 matrix or table. Show you understand the competition and have a clear advantage.
+8. **Traction / roadmap** (1 slide) — Where you are now and where you're going. Milestones, not activities. "Launched MVP, 3 paying customers, $X revenue." GTM timeline: within 12 months.
 
-9. **Team** (1 slide) — Key people, their relevant experience, why they're the right team for this. Include advisors.
+9. **Competitive landscape** (1 slide) — 2x2 matrix or table. Show you understand the competition and have a clear advantage.
 
-10. **Financial projections** (1 slide) — Revenue chart (5-year). Key metrics. Monte Carlo range (show the confidence interval).
+10. **Ecosystem** (1 slide) — Surrounding ecosystem, platforms, partners, network effects. How the company creates value within or creates an ecosystem. Long-term scalability.
 
-11. **Ask** (1 slide) — How much, what you'll use it for, what milestones it funds. Be specific.
+11. **Team** (1 slide) — Key people, their relevant experience, why they're the right team for this. Include advisors. Include the key roles the company needs to hire.
 
-12. **Thank you** (1 slide) — Contact info, QR code to whitepaper if available.
+12. **Capital Roadmap** (1 slide) — Revenue chart (5-year). Key metrics. Monte Carlo range (show the confidence interval). What milestones each funding round unlocks.
+
+13. **Ask** (1 slide) — How much, what you'll use it for, what milestones it funds. Be specific. Reference the corporate acquisition exit path.
+
+14. **Thank you** (1 slide) — Contact info, QR code to whitepaper if available.
 
 ### Step 4: Write the Beamer source
 
@@ -107,11 +111,13 @@ Write to `work/whitepaper/pitch-deck.tex`.
 
 ## Quality Checks
 
-- [ ] 10-15 slides max
+- [ ] 12-16 slides max (14 is the sweet spot)
 - [ ] One idea per slide (if a slide has 3+ bullet points, it needs to be split)
+- [ ] Corporate Alignment & Exit Strategy slide is included (investors need to see the exit path)
+- [ ] Ecosystem slide is included (shows long-term thinking)
 - [ ] Every number matches the whitepaper analysis
 - [ ] No new claims not supported by the analysis
 - [ ] Speaker notes are included for each slide
 - [ ] The `metropolis` theme is used (or a clean alternative)
-- [ ] The ask slide is specific (amount, use, milestones)
+- [ ] The ask slide is specific (amount, use, milestones) and references the corporate exit path
 - [ ] The deck tells a complete story even without the presenter
