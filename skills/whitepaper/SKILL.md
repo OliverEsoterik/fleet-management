@@ -11,6 +11,13 @@ tools: Read, Write, Bash, Agent
 
 This skill produces a complete investor-ready whitepaper PDF and companion pitch deck PDF from a raw business idea description.
 
+The whitepaper is built for a specific investment thesis:
+- **Exit strategy:** The primary exit path is acquisition by a strategic corporate buyer. The company is built to be sold, not to be run indefinitely.
+- **Investor audience:** The whitepaper targets corporates (strategic investors), business angels, and VCs. Investors with corporate connections are particularly valuable — they are offered stakes and a clear path to a corporate exit.
+- **Stage focus:** Idea to Pre-Seed. If there is working code, it is at most an MVP. The whitepaper validates the idea before significant capital is raised.
+- **Scaling mandate:** Every startup must go to market within 12 months or scale within 36 months, or it is failed. Speed and talent are the two critical success factors.
+- **Long-term view:** We look for things that can scale long-term and have the opportunity to make markets, not just enter them.
+
 The pipeline has 9 phases:
 1. **idea-decomposer** — Parses the raw idea into a structured brief
 2. **technical-analyst** — Deep-dive technical architecture and solution
@@ -66,9 +73,14 @@ The pipeline has 9 phases:
       - Target customer segments
       - Industry/sector classification (SaaS, deep tech, biotech, finance, hardware, other)
       - Team overview (founders, key hires needed, gaps)
-      - Stage (idea, prototype, MVP, revenue, growth)
+      - Stage (Idea to Pre-Seed — the default. If there is code, it is at most MVP)
       - Funding requirements (amount, use of funds, valuation expectations)
       - Key constraints (regulatory, technical, competitive, timeline)
+      - **Exit strategy** — corporate acquisition plan. The company is built to be acquired by a strategic corporate buyer, not to be run indefinitely.
+      - **Investor target group** — corporates, business angels, VCs. Investors with corporate connections are particularly valuable.
+      - **Corporate alignment** — how partnerships with corporates will be structured (co-development, distribution, strategic investment).
+      - **Ecosystem** — surrounding ecosystem, network effects, platforms the company plugs into or creates.
+      - **Scaling requirements** — go-to-market within 12 months, scale within 36 months, or fail. Speed and talent are critical.
       - Success criteria (what "done" looks like for this whitepaper)
 
       The industry classification is critical — downstream nodes adjust their
@@ -254,8 +266,8 @@ The pipeline has 9 phases:
       - `work/whitepaper/business.md`
       - `work/whitepaper/coherence-report.md`
 
-      Use the `metropolis` Beamer theme (or similar clean theme). 10-15
-      slides max. One idea per slide. Include speaker notes.
+      Use the `metropolis` Beamer theme (or similar clean theme). 12-16
+      slides max (14 is the sweet spot). One idea per slide. Include speaker notes.
 
       Every number in the pitch deck must match the whitepaper.
 
