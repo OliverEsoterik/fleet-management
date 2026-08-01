@@ -1,6 +1,6 @@
 ---
 name: whitepaper
-description: > When you have a business idea and need to create a professional whitepaper with technical deep-dive, business case, and go-to-market strategy — produces a polished PDF and companion pitch deck
+description: When you have a business idea and need to create a professional whitepaper with technical deep-dive, business case, and go-to-market strategy — produces a polished PDF and companion pitch deck
 skills: []
 tools: Read, Write, Bash, Agent
 ---
