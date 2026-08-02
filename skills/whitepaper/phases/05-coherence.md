@@ -78,6 +78,10 @@ Verification process:
 3. If the claim has a source, verify the source exists in `research.md` or `market-research.md`
 4. If the claim has no source, flag it as "Uncited Claim"
 5. If the claim's source cannot be verified against the research files, flag it as "Unverifiable Source"
+6. **If the source exists in the research files but does not have a publicly accessible URL (e.g., it is behind a paywall or the URL returns 404/403), flag it as "Unverifiable Source" and do NOT allow it to be added to `references.bib`.**
+   A source behind a paywall is not verifiable. Remove the claim from the corrected files.
+7. **If a source is added to `references.bib`, verify that the BibTeX entry has a `howpublished = {\url{...}}` field.**
+   Any entry without a URL field is invalid and must be removed.
 
 ### Step 5: Premortem analysis
 
@@ -140,6 +144,7 @@ After the loop ends (either converged or hit max iterations), append a Correctio
 - Do NOT include failure-mode labels, diagnostic language, or "this is a risk" commentary in the corrected files.
 - Maintain the same level of detail as the original files.
 - **Remove uncited claims entirely.** If a claim lacks a `[Source: ...]` reference, delete it from the corrected file. Do not replace it with "we assume" or "we estimate" — remove it. The whitepaper should only contain claims that are supported by verifiable sources.
+- **Remove claims whose source cannot be verified against a public URL.** If a source exists in the research files but is behind a paywall or has no publicly accessible URL, the claim must be removed. A source is only valid if it can be fetched and verified by anyone reading the whitepaper.
 
 **Convergence criteria:**
 The loop converges when ALL of the following are true:
