@@ -201,6 +201,12 @@ For market data sources (from `market-research.md`), convert URLs and report nam
 - Every `\cite{key}` must have a corresponding entry in `references.bib`
 - Use `\cite{key}` immediately after the claim it supports, e.g.: "The market is projected to reach $30B by 2030\cite{gartner2024}."
 - If a `[Source: ...]` reference cannot be matched to a BibTeX entry, flag it in the quality report
+- **Every BibTeX entry must have a `howpublished = {\url{...}}` field pointing to the URL where the source was actually found during the research phase.**
+  Do NOT add entries for sources that are behind paywalls, that you have not personally verified are publicly accessible, or that you only know about from memory.
+  A source is only valid if it has a URL that was fetched and confirmed during the research phase.
+- **If a claim in the analysis files references a source that cannot be found with a verifiable public URL, do NOT add it to `references.bib`.**
+  Instead, remove the claim from the whitepaper text and flag it in the quality report.
+  It is better to remove an unsupported claim than to include a fake or unverifiable citation.
 
 ## Output Format
 
@@ -216,3 +222,5 @@ Write to `work/whitepaper/whitepaper.tex` and `work/whitepaper/sections/*.tex`.
 - [ ] LaTeX compiles without errors (run pdflatex to verify)
 - [ ] One sentence per line in `.tex` source
 - [ ] All special characters are escaped for LaTeX
+- [ ] **Every BibTeX entry has a `howpublished = {\url{...}}` field with a publicly accessible URL**
+  If a source does not have a URL that was fetched and verified during research, it must be removed from `references.bib` and the claim removed from the text.
