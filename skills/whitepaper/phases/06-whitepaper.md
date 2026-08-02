@@ -9,16 +9,18 @@ Take all analysis files and the coherence report, apply the fixes, and produce a
 ### Step 1: Read all inputs
 
 Read these files:
-- `work/whitepaper/idea-brief.md`
-- `work/whitepaper/technical.md`
-- `work/whitepaper/market.md`
-- `work/whitepaper/business.md`
-- `work/whitepaper/coherence-report.md`
+- `work/whitepaper/corrected/idea-brief.md`
+- `work/whitepaper/corrected/technical.md`
+- `work/whitepaper/corrected/market.md`
+- `work/whitepaper/corrected/business.md`
+- `work/whitepaper/research.md` (for bibliography references)
+- `work/whitepaper/market-research.md` (for market data sources)
+- `work/whitepaper/coherence-report.md` (for awareness — the fixes are already applied)
 - `skills/whitepaper/template.tex`
 
-### Step 2: Apply coherence fixes
+### Step 2: Trust the loop — the corrected files are coherent
 
-Before writing anything, go through the coherence report's fixes and apply them to the analysis. The whitepaper should reflect the corrected analysis, not the original errors.
+The coherence checker ran an iterative correction loop (Step 7 in the methodology) until the corrected files contained zero contradictions, gaps, or weak arguments. The files in `work/whitepaper/corrected/` are verified coherent. Do not re-check or second-guess them — write the whitepaper directly from the corrected files.
 
 ### Step 3: Select relevant sections
 
@@ -125,8 +127,7 @@ Create `work/whitepaper/sections/` directory. Write one `.tex` file per section.
     - **Answers:** What is the ecosystem?
 
 11. **Risk Analysis** (1-2 pages)
-    - Top risks and mitigations
-    - Premortem findings
+    - Top risks and mitigations (drawn from the corrected analysis, not from the coherence report's diagnostic language)
     - Talent risk: how the company will attract and retain the talent needed
     - Product-market fit risk: how PMF will be validated
 
@@ -158,9 +159,48 @@ Write `work/whitepaper/whitepaper.tex` that sets the metadata and includes all s
 \end{document}
 ```
 
-### Step 6: Add a bibliography
+### Step 6: Create the bibliography from research data
 
-If the whitepaper cites external sources, create `work/whitepaper/references.bib`.
+Read `work/whitepaper/research.md` and `work/whitepaper/market-research.md` — they contain citation data for every paper, repository, and market source found during research.
+
+Create `work/whitepaper/references.bib` with BibTeX entries for each source that is actually cited in the whitepaper text.
+
+For arXiv papers (from `research.md`), use the `@misc` entry type with the arXiv ID as the key:
+```bibtex
+@misc{author2023key,
+  author = {Last, First and Last, First},
+  title = {Paper Title},
+  year = {2023},
+  eprint = {2301.12345},
+  archivePrefix = {arXiv},
+}
+```
+
+For GitHub repositories (from `research.md`), use the `@misc` entry type:
+```bibtex
+@misc{owner-repo,
+  author = {Owner or Organization},
+  title = {Repository Name},
+  year = {2023},
+  howpublished = {\url{https://github.com/owner/repo}},
+}
+```
+
+For market data sources (from `market-research.md`), convert URLs and report names to BibTeX:
+```bibtex
+@misc{source-key,
+  author = {Organization},
+  title = {Report Title or Page Title},
+  year = {2024},
+  howpublished = {\url{https://...}},
+}
+```
+
+**Citation rules:**
+- Every `[Source: ...]` reference in the analysis files must be converted to a `\cite{key}` in the LaTeX
+- Every `\cite{key}` must have a corresponding entry in `references.bib`
+- Use `\cite{key}` immediately after the claim it supports, e.g.: "The market is projected to reach $30B by 2030\cite{gartner2024}."
+- If a `[Source: ...]` reference cannot be matched to a BibTeX entry, flag it in the quality report
 
 ## Output Format
 
@@ -168,7 +208,8 @@ Write to `work/whitepaper/whitepaper.tex` and `work/whitepaper/sections/*.tex`.
 
 ## Quality Checks
 
-- [ ] All coherence report fixes have been applied
+- [ ] Corrected analysis files are used (not the originals)
+- [ ] No diagnostic language, failure-mode labels, or coherence-report jargon appears in the `.tex` output
 - [ ] Every section that is included is complete (no empty sections)
 - [ ] Cross-references between sections are consistent
 - [ ] Numbers match across sections (revenue in financials matches market size in market section)

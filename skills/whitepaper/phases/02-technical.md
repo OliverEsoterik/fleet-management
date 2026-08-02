@@ -9,9 +9,22 @@ Produce a deep-dive technical analysis that convinces an investor the solution i
 
 ## Process
 
-### Step 1: Read the idea brief
+### Step 1: Read the idea brief and research findings
 
-Read `work/whitepaper/idea-brief.md`. Understand the problem, solution, industry, and constraints.
+Read `work/whitepaper/idea-brief.md` to understand the problem, solution, industry, and constraints.
+
+Read `work/whitepaper/research.md` to see relevant academic papers and open-source implementations.
+
+### Cite every claim
+
+Every factual claim in your analysis must include a source reference. Use the format `[Source: Author, Title, URL]` or `[Source: arXiv:XXXX.XXXXX]` or `[Source: Name, URL]`. Place the source reference immediately after the claim.
+
+**Examples:**
+- "The global market for X is projected to reach $30B by 2030 [Source: Gartner, Market Forecast 2024, https://...]"
+- "Transformer-based approaches achieve 97% accuracy on this task [Source: Vaswani et al., Attention Is All You Need, arXiv:1706.03762]"
+- "The reference implementation demonstrates real-time processing at 10ms latency [Source: owner/repo, https://github.com/...]"
+
+If you cannot find a source for a claim in the research files, do not make the claim. The coherence checker will remove any uncited claims from the corrected files. Your analysis should only contain claims that are verifiable.
 
 ### Step 2: System architecture
 

@@ -9,15 +9,17 @@ Produce a Beamer presentation that tells the same story as the whitepaper in 10-
 ### Step 1: Read all inputs
 
 Read these files:
-- `work/whitepaper/idea-brief.md`
-- `work/whitepaper/technical.md`
-- `work/whitepaper/market.md`
-- `work/whitepaper/business.md`
-- `work/whitepaper/coherence-report.md`
+- `work/whitepaper/corrected/idea-brief.md`
+- `work/whitepaper/corrected/technical.md`
+- `work/whitepaper/corrected/market.md`
+- `work/whitepaper/corrected/business.md`
+- `work/whitepaper/research.md` (for bibliography references)
+- `work/whitepaper/market-research.md` (for market data sources)
+- `work/whitepaper/coherence-report.md` (for awareness — the fixes are already applied)
 
-### Step 2: Apply coherence fixes
+### Step 2: Trust the loop — the corrected files are coherent
 
-Same as the whitepaper — apply fixes from the coherence report before writing.
+The coherence checker ran an iterative correction loop until the corrected files contained zero issues. Write the pitch deck directly from the corrected files. Do not re-check.
 
 ### Step 3: Design the slide structure
 
