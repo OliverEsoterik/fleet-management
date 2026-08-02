@@ -9,9 +9,22 @@ Build financial projections and risk analysis that demonstrate:
 
 ## Process
 
-### Step 1: Read the idea brief
+### Step 1: Read the idea brief and research data
 
-Read `work/whitepaper/idea-brief.md`. Understand the industry, stage, funding needs, and constraints.
+Read `work/whitepaper/idea-brief.md` to understand the industry, stage, funding needs, and constraints.
+
+Read `work/whitepaper/market-research.md` for industry benchmarks (margins, CAC, churn, etc.) that ground your financial projections.
+
+### Cite every claim
+
+Every financial assumption in your analysis must include a source reference. Use the format `[Source: Name, URL]`.
+
+**Examples:**
+- "Gross margin for SaaS is 75% [Source: OpenView Benchmarks 2024, https://...]"
+- "Median CAC for enterprise SaaS is $50K [Source: KeyBanc SaaS Survey 2024, https://...]"
+- "Annual churn for mid-market SaaS is 10% [Source: Pacific Crest SaaS Survey, https://...]"
+
+If you cannot find a source in the market research file, do not make the claim. The coherence checker will remove any uncited claims from the corrected files.
 
 ### Step 2: Revenue model
 

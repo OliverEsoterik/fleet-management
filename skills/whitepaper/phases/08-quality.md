@@ -28,6 +28,7 @@ For each dimension, read the relevant sections of the document and score:
 | 8 | **Structure** | Is the document well-organized? Check: TOC, section ordering, logical flow, cross-references. | Well-organized | Minor structural issues | Poor organization |
 | 9 | **Style** | Is the tone professional? Check for: marketing fluff ("game-changing", "revolutionary"), overclaims ("best", "only"), emotional language, typos. | Professional tone | Minor style issues | Unprofessional tone |
 | 10 | **Timeliness** | Can the document be produced in reasonable time? Check for blocking issues. | No blocking issues | Minor issues | Blocking issues |
+| 11 | **Citations** | Does every factual claim have a `\cite{}` or named source? Scan the `.tex` for uncited numbers, percentages, dollar figures, and comparative statements. Cross-reference every `\cite{key}` against `references.bib` to ensure the entry exists. | Every claim cited, all keys match | 1-2 uncited claims or missing BibTeX entries | 3+ uncited claims or missing entries |
 
 ### Step 3: Write the quality report
 

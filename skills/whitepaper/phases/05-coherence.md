@@ -13,6 +13,8 @@ Read these files:
 - `work/whitepaper/technical.md` — technical analysis
 - `work/whitepaper/market.md` — market research
 - `work/whitepaper/business.md` — business model
+- `work/whitepaper/research.md` — arXiv and GitHub research (source data for citations)
+- `work/whitepaper/market-research.md` — market data research (source data for citations)
 
 ### Step 2: Check for contradictions
 
@@ -52,6 +54,31 @@ What's missing that an investor would notice?
 - **Vague language:** "We'll leverage AI" without specifying how
 - **Missing trade-offs:** Every design choice has trade-offs — if they're not mentioned, the analysis is incomplete
 
+### Check for uncited claims
+
+Every factual claim in the analysis must have a source reference. Claims without sources are not credible and will be removed from the corrected files in the correction loop.
+
+What counts as a claim that needs a source:
+- **Dollar figures:** Any market size, revenue projection, cost estimate, price point
+- **Percentages:** Growth rates, margins, churn, market share, conversion rates
+- **Projections:** "Will reach X by 2030", "expected to grow at Y%"
+- **Comparative statements:** "Faster than X", "cheaper than Y", "better than Z"
+- **External facts:** Number of competitors, customer counts, industry statistics
+
+What does NOT need a source:
+- **Architecture descriptions:** "The system uses PostgreSQL"
+- **Design decisions:** "We chose AWS over GCP because..."
+- **Feature lists:** "The product includes X, Y, and Z"
+- **Team descriptions:** "The founder has 10 years of experience"
+- **Problem statements:** "Companies struggle to manage X"
+
+Verification process:
+1. Scan each analysis file for claims (look for $, %, numbers, comparative language)
+2. For each claim found, check if it has a `[Source: ...]` reference nearby
+3. If the claim has a source, verify the source exists in `research.md` or `market-research.md`
+4. If the claim has no source, flag it as "Uncited Claim"
+5. If the claim's source cannot be verified against the research files, flag it as "Unverifiable Source"
+
 ### Step 5: Premortem analysis
 
 Imagine it's 6 months from now and the whitepaper failed to convince investors. What went wrong?
@@ -71,6 +98,57 @@ For each issue found, write a specific fix:
 - **Not:** "Improve the financial projections"
 - **But:** "Revenue projection assumes 50% market share in year 2. Reduce to 10% (aligned with competitor analysis showing 5 competitors) and adjust the timeline to year 4."
 
+### Step 7: Iterative correction loop — fix until coherent
+
+The coherence report identifies what's wrong. This step fixes it — and verifies the fix — in a loop. The goal is to produce corrected files that contain zero contradictions, gaps, or weak arguments, so the whitepaper writer can write from a clean foundation.
+
+**Setup:**
+```bash
+mkdir -p work/whitepaper/corrected
+cp work/whitepaper/idea-brief.md work/whitepaper/corrected/idea-brief.md
+```
+
+**The loop (max 5 iterations to prevent infinite loops):**
+
+For each iteration N (starting at 1):
+
+1. **Read the current files:**
+   - Iteration 1: read the originals (`work/whitepaper/technical.md`, `work/whitepaper/market.md`, `work/whitepaper/business.md`)
+   - Iterations 2+: read the previously corrected files (`work/whitepaper/corrected/technical.md`, etc.)
+
+2. **Check for issues** — apply the same coherence checking methodology from Steps 2-5 to the current files:
+   - Are there contradictions between sections?
+   - Are there gaps?
+   - Are there weak arguments or unsupported claims?
+   - Did the previous iteration's fixes introduce new problems?
+
+3. **If no issues found:** exit the loop. The files are coherent.
+
+4. **If issues found:**
+   - Fix every issue directly in the analysis content
+   - Write corrected files to `work/whitepaper/corrected/technical.md`, `work/whitepaper/corrected/market.md`, `work/whitepaper/corrected/business.md`
+   - Go to iteration N+1
+
+**Writing the convergence summary:**
+
+After the loop ends (either converged or hit max iterations), append a Correction Loop section to the coherence report. Record every iteration and what changed.
+
+**Rules for correcting:**
+- Fix the root cause, not the symptom. If revenue projections are optimistic, adjust the numbers and rationale — don't just add a note.
+- Preserve the structure and format of the original files. Only change the content that needs fixing.
+- If a contradiction exists between two sections, pick the more defensible position and align both sections to it.
+- Do NOT include failure-mode labels, diagnostic language, or "this is a risk" commentary in the corrected files.
+- Maintain the same level of detail as the original files.
+- **Remove uncited claims entirely.** If a claim lacks a `[Source: ...]` reference, delete it from the corrected file. Do not replace it with "we assume" or "we estimate" — remove it. The whitepaper should only contain claims that are supported by verifiable sources.
+
+**Convergence criteria:**
+The loop converges when ALL of the following are true:
+- Zero contradictions exist between any two corrected files
+- Zero gaps remain (all required sections from the idea brief are addressed)
+- Zero weak arguments remain (every claim has supporting evidence or rationale)
+- Zero uncited claims remain (every factual claim has a `[Source: ...]` reference that can be verified against the research files)
+- The corrected files tell one coherent, consistent story
+
 ## Output Format
 
 Write to `work/whitepaper/coherence-report.md`:
@@ -82,6 +160,7 @@ Write to `work/whitepaper/coherence-report.md`:
 - **Contradictions found:** X
 - **Gaps found:** X
 - **Weak arguments found:** X
+- **Uncited claims found:** X
 - **Premortem verdict:** [what's most likely to cause failure]
 
 ## Contradictions
@@ -99,11 +178,26 @@ Write to `work/whitepaper/coherence-report.md`:
 |---|----------|---------------|-----|
 | 1 | ... | ... | ... |
 
+## Uncited Claims
+| # | Claim | File | Fix |
+|---|-------|------|-----|
+| 1 | "$30B by 2030" | market.md:15 | Removed — no source found |
+| 2 | "40% CAGR" | market.md:22 | Removed — no source found |
+
 ## Premortem Analysis
 [Failure scenario → root cause → what needs to change]
 
 ## Priority Fixes
 [Top 3 things that must be fixed before writing the whitepaper]
+
+## Correction Loop
+- **Iterations:** N
+- **Converged:** Yes / No
+- **If No, remaining issues:** [what still needs fixing]
+- **Changes per iteration:**
+  - Iteration 1: [list of specific fixes applied]
+  - Iteration 2: [list of specific fixes applied]
+  - ...
 ```
 
 ## Quality Checks
@@ -113,3 +207,10 @@ Write to `work/whitepaper/coherence-report.md`:
 - [ ] Premortem analysis identifies concrete failure modes
 - [ ] Issues are prioritized (not everything is equally important)
 - [ ] The tone is constructive — the goal is to improve the document, not to criticize the analysis
+- [ ] Corrected analysis files are written to `work/whitepaper/corrected/` after the loop converges
+- [ ] Corrected files contain no diagnostic language, failure-mode labels, or "this is a risk" commentary
+- [ ] The idea brief is copied to `work/whitepaper/corrected/idea-brief.md`
+- [ ] The loop converged (or max iterations reached with remaining issues documented)
+- [ ] Each iteration's changes are recorded in the convergence summary
+- [ ] Uncited claims identified and removed from corrected files
+- [ ] Every remaining claim has a `[Source: ...]` reference verifiable against research files

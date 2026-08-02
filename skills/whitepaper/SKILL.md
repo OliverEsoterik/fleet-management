@@ -18,16 +18,17 @@ The whitepaper is built for a specific investment thesis:
 - **Scaling mandate:** Every startup must go to market within 12 months or scale within 36 months, or it is failed. Speed and talent are the two critical success factors.
 - **Long-term view:** We look for things that can scale long-term and have the opportunity to make markets, not just enter them.
 
-The pipeline has 9 phases:
+The pipeline has 10 phases:
 1. **idea-decomposer** — Parses the raw idea into a structured brief
-2. **technical-analyst** — Deep-dive technical architecture and solution
-3. **market-researcher** — Market size, competitors, GTM strategy
-4. **business-modeler** — Financial projections, Monte Carlo simulation
-5. **coherence-checker** — Flags contradictions across sections
-6. **whitepaper-writer** — Produces LaTeX whitepaper
-7. **pitch-deck-writer** — Produces Beamer pitch deck
-8. **quality-checker** — Applies 10-dimension quality framework
-9. **pdf-compiler** — Compiles both documents to PDF
+2. **technical-researcher** — arXiv and GitHub research to support the technical analysis
+3. **technical-analyst** — Deep-dive technical architecture and solution
+4. **market-researcher** — Market size, competitors, GTM strategy
+5. **business-modeler** — Financial projections, Monte Carlo simulation
+6. **coherence-checker** — Flags contradictions across sections
+7. **whitepaper-writer** — Produces LaTeX whitepaper
+8. **pitch-deck-writer** — Produces Beamer pitch deck
+9. **quality-checker** — Applies 10-dimension quality framework
+10. **pdf-compiler** — Compiles both documents to PDF
 
 **Outputs:**
 - `work/whitepaper/whitepaper.pdf` — final whitepaper
@@ -39,6 +40,8 @@ The pipeline has 9 phases:
 - `work/whitepaper/coherence-report.md` — coherence check
 - `work/whitepaper/whitepaper.tex` — LaTeX source
 - `work/whitepaper/pitch-deck.tex` — Beamer source
+- `work/whitepaper/research.md` — arXiv and GitHub research findings
+- `work/whitepaper/market-research.md` — market data, competitor intelligence, and industry reports
 - `work/whitepaper/quality-report.md` — quality check
 
 **Announce at start:** "I'm using the whitepaper skill to produce a professional whitepaper for [business idea]."
@@ -87,15 +90,33 @@ The pipeline has 9 phases:
       methodology based on it. Be specific and accurate.
     skills: []
     output: work/whitepaper/idea-brief.md
-    route: always -> technical-analyst, market-researcher, business-modeler
+    route: always -> technical-researcher, market-data-researcher, business-modeler
 
-  - name: technical-analyst
+  - name: technical-researcher
     trigger: route("idea-decomposer")
     input: [user_request]
     role: >
+      You are a technical research specialist. Read the idea brief from
+      `work/whitepaper/idea-brief.md` and search arXiv and GitHub for
+      relevant academic papers and open-source implementations to
+      support the technical analysis.
+
+      Read the methodology at `skills/whitepaper/phases/02b-research.md`
+      and follow it exactly.
+
+      **Output:** `work/whitepaper/research.md`
+    skills: []
+    output: work/whitepaper/research.md
+    route: always -> technical-analyst
+
+  - name: technical-analyst
+    trigger: route("technical-researcher")
+    input: [user_request]
+    role: >
       You are a technical architect. Read the idea brief from
-      `work/whitepaper/idea-brief.md` and produce a deep-dive technical
-      analysis.
+      `work/whitepaper/idea-brief.md` and the research findings from
+      `work/whitepaper/research.md`, then produce a deep-dive technical
+      analysis that incorporates relevant papers and implementations.
 
       Read the methodology at `skills/whitepaper/phases/02-technical.md`
       and follow it exactly.
@@ -119,11 +140,36 @@ The pipeline has 9 phases:
     output: work/whitepaper/technical.md
     route: always -> coherence-checker
 
-  - name: market-researcher
+  - name: market-data-researcher
     trigger: route("idea-decomposer")
     input: [user_request]
     role: >
-      You are a market analyst and GTM strategist. Read the idea brief from
+      You are a market research specialist. Read the idea brief from
+      `work/whitepaper/idea-brief.md` and search the web for market data,
+      competitor information, and industry reports to support the market
+      analysis.
+
+      Read the methodology at `skills/whitepaper/phases/03b-market-research.md`
+      and follow it exactly.
+
+      **Output:** `work/whitepaper/market-research.md`
+    skills: []
+    output: work/whitepaper/market-research.md
+    route: always -> market-researcher
+
+  - name: market-researcher
+    trigger: route("market-data-researcher")
+    input: [user_request]
+    role: >
+      You are a market analyst and GTM strategist. Read the idea brief and
+      the market research findings, then produce market analysis and
+      go-to-market strategy.
+
+      Read the market research at `work/whitepaper/market-research.md` and
+      incorporate real market data, competitor intelligence, and industry
+      benchmarks into your analysis. Cite sources where possible.
+
+      Read the idea brief from
       `work/whitepaper/idea-brief.md` and produce market research and
       go-to-market strategy.
 
@@ -204,8 +250,17 @@ The pipeline has 9 phases:
       - `work/whitepaper/technical.md`
       - `work/whitepaper/market.md`
       - `work/whitepaper/business.md`
+      - `work/whitepaper/research.md` (source data for citation verification)
+      - `work/whitepaper/market-research.md` (source data for citation verification)
 
       **Output:** `work/whitepaper/coherence-report.md`
+
+      After writing the report, enter the iterative correction loop
+      (Step 7 in the methodology): fix the issues, write corrected
+      files, re-read and check again, repeat until no issues remain.
+      The loop converges when the corrected files
+      (`work/whitepaper/corrected/technical.md`, etc.) contain zero
+      contradictions, gaps, or weak arguments. Max 5 iterations.
 
       Your report must identify:
       - Contradictions between sections (e.g., tech says 6-month dev
@@ -218,7 +273,7 @@ The pipeline has 9 phases:
       - Categorize each issue: Contradiction / Gap / Weak Argument /
         Unsupported Claim
     skills: []
-    output: work/whitepaper/coherence-report.md
+    output: work/whitepaper/coherence-report.md, work/whitepaper/corrected/technical.md, work/whitepaper/corrected/market.md, work/whitepaper/corrected/business.md
     route: always -> whitepaper-writer, pitch-deck-writer
 
   - name: whitepaper-writer
@@ -232,14 +287,20 @@ The pipeline has 9 phases:
       and follow it exactly.
 
       **Read these files:**
-      - `work/whitepaper/idea-brief.md`
-      - `work/whitepaper/technical.md`
-      - `work/whitepaper/market.md`
-      - `work/whitepaper/business.md`
-      - `work/whitepaper/coherence-report.md`
+      - `work/whitepaper/corrected/idea-brief.md`
+      - `work/whitepaper/corrected/technical.md`
+      - `work/whitepaper/corrected/market.md`
+      - `work/whitepaper/corrected/business.md`
+      - `work/whitepaper/research.md` (for bibliography references)
+      - `work/whitepaper/market-research.md` (for market data sources)
+      - `work/whitepaper/coherence-report.md` (for awareness — fixes are already applied to the corrected files)
       - `skills/whitepaper/template.tex`
 
-      Apply the fixes from the coherence report before writing.
+      The coherence report's fixes are already applied to the corrected
+      files. Do NOT reproduce failure-mode labels, diagnostic language,
+      or "contradiction" / "gap" / "weak argument" terminology from the
+      coherence report in the final document. The whitepaper must read as
+      a confident, coherent investment case — not as a self-critique.
 
       Create `work/whitepaper/sections/` with one `.tex` file per section.
       Only include sections relevant to the industry and idea brief.
@@ -260,11 +321,17 @@ The pipeline has 9 phases:
       and follow it exactly.
 
       **Read these files:**
-      - `work/whitepaper/idea-brief.md`
-      - `work/whitepaper/technical.md`
-      - `work/whitepaper/market.md`
-      - `work/whitepaper/business.md`
-      - `work/whitepaper/coherence-report.md`
+      - `work/whitepaper/corrected/idea-brief.md`
+      - `work/whitepaper/corrected/technical.md`
+      - `work/whitepaper/corrected/market.md`
+      - `work/whitepaper/corrected/business.md`
+      - `work/whitepaper/research.md` (for bibliography references)
+      - `work/whitepaper/market-research.md` (for market data sources)
+      - `work/whitepaper/coherence-report.md` (for awareness — fixes are already applied to the corrected files)
+
+      Do NOT reproduce failure-mode labels, diagnostic language, or
+      "contradiction" / "gap" / "weak argument" terminology from the
+      coherence report in the pitch deck.
 
       Use the `metropolis` Beamer theme (or similar clean theme). 12-16
       slides max (14 is the sweet spot). One idea per slide. Include speaker notes.

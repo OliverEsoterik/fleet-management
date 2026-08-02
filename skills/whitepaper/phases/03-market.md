@@ -10,9 +10,22 @@ Produce market research and go-to-market strategy that answers the investor's ke
 
 ## Process
 
-### Step 1: Read the idea brief
+### Step 1: Read the idea brief and market research findings
 
-Read `work/whitepaper/idea-brief.md`. Understand the industry, target customers, and stage.
+Read `work/whitepaper/idea-brief.md` to understand the industry, target customers, and stage.
+
+Read `work/whitepaper/market-research.md` to see real market data, competitor intelligence, and industry reports.
+
+### Cite every claim
+
+Every factual claim in your analysis must include a source reference. Use the format `[Source: Name, URL, Date]`.
+
+**Examples:**
+- "The TAM for X is $50B by 2028 [Source: Gartner, Market Forecast 2024, https://...]"
+- "Competitor Y has raised $200M in Series C funding [Source: Crunchbase, https://...]"
+- "Industry median gross margin for SaaS is 75% [Source: OpenView Benchmarks 2024, https://...]"
+
+If you cannot find a source in the market research file, do not make the claim. The coherence checker will remove any uncited claims from the corrected files.
 
 ### Step 2: TAM / SAM / SOM
 
